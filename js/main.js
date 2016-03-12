@@ -1,3 +1,48 @@
+var Key = {
+  _pressed: {},
+
+  LEFT: 37,
+  UP: 38,
+  RIGHT: 39,
+  DOWN: 40,
+  
+  // undefined or 0: Not pressed
+  // 1: Just pressed
+  // 2: Still pressed
+  // 3: Just released
+  getState: function(keyCode) {
+    return this._pressed[keyCode];
+  },
+  
+  isDown: function(keyCode) {
+  	return this.getState(keyCode) === 2 || this.getState(keyCode) === 1;
+  },
+
+  onKeydown: function(event) {
+  	if (this._pressed[event.keyCode] && this._pressed[event.keyCode] !== 3) {
+    	this._pressed[event.keyCode] = 2;
+	}
+	else {
+    	this._pressed[event.keyCode] = 1;
+    }
+  },
+  
+  onKeyup: function(event) {
+    this._pressed[event.keyCode] = 3;
+  },
+
+  updateStates: function() {
+	for (var key in this._pressed) {
+		var state = this.getState(key);
+		if ( state === 1) {
+			this._pressed[key] = 2;
+		}
+		if (state === 3) {
+			delete this._pressed[key];
+		}
+	}
+  }
+};
 // Define "objects" (I don't really know what I'm doing)
 
 
@@ -72,8 +117,8 @@ function getImageFromEntity(entity) {
 function draw(context, entity, x, y, width, height) {
 	x = x || entity.x;
 	y = y || entity.y;{}
-	width = width || entity.width;
-	height = height || entity.height;
+	width = (width !== undefined) ? width : entity.width;
+	height = (height !== undefined) ? height : entity.height;
 	// context.drawImage(getImageFromEntity(entity), (x | entity.x), (y | entity.y),
 	//  (width | entity.width), (height | entity.height));
 	context.drawImage(getImageFromEntity(entity), x, y, width, height);
@@ -82,13 +127,25 @@ function draw(context, entity, x, y, width, height) {
 
 var gameCanvas = $('<canvas id=gameCanvas>');
 $('#gamePane').append(gameCanvas);
-var gameContext = gameCanvas[0].getContext('2d');
-$('#gamePane').resize(function() {
+var gameContext;
+$(window).resize(function() {
 	gameCanvas.attr('width', $('#gamePane').width());
 	gameCanvas.attr('height', $('#gamePane').height());
+	gameContext = gameCanvas[0].getContext('2d');
 });
 gameCanvas.attr('width', $('#gamePane').width());
 gameCanvas.attr('height', $('#gamePane').height());
+gameContext = gameCanvas[0].getContext('2d');
+window.addEventListener('keyup', function(event) { Key.onKeyup(event); }, false);
+window.addEventListener('keydown', function(event) { Key.onKeydown(event); }, false);
+
+// Global variables
+var scenes = {
+	menu: {},
+	game: {}
+}
+var pw = 444;
+
 
 // Preload them resources
 var preloadedImgs = [];
@@ -114,9 +171,46 @@ function startMainMenu() {
 	startGame();
 }
 function startGame() {
-	draw(gameContext, newEntity([['res/joe_pass.jpg']], 0, 0), 44, 44);
-	draw(gameContext, newEntity([['res/cage.jpg']], 0, 0), 44, 44);
-	draw(gameContext, newEntity([['res/mystery_font.jpeg']], 0, 0), 0, 0, 22, 222);
+	scenes.game.player = newEntity([['res/cage.jpg']], 0, 0);
+	runGame();
+}
+function runGame() {
+	// Movement
+	if (Key.isDown(Key.UP)) {
+		scenes.game.player.y-=8;
+	}
+	if (Key.isDown(Key.DOWN)) {
+		scenes.game.player.y+=8;
+	}
+	if (Key.isDown(Key.LEFT)) {
+		scenes.game.player.x-=8;
+	}
+	if (Key.isDown(Key.RIGHT)) {
+		scenes.game.player.x+=8;
+	}
+	if (Key.getState(Key.UP) === 3) {
+		scenes.game.player.y-=-22;
+	}
+	if (Key.getState(Key.DOWN) === 3) {
+		scenes.game.player.y+=-22;
+	}
+	if (Key.getState(Key.LEFT) === 3) {
+		scenes.game.player.x-=-22;
+	}
+	if (Key.getState(Key.RIGHT) === 3) {
+		scenes.game.player.x+=-22;
+	}
+	pw += ~~((Math.random()-0.5)*8);
+	// Render
+	gameContext.clearRect(0, 0, gameCanvas[0].width, gameCanvas[0].height);
+	draw(gameContext, newEntity([['res/joe_pass.jpg']], 44, 44));
+	draw(gameContext, newEntity([['res/mystery_font.jpeg']], 0, 0), 0, 0, pw, 222);
+	draw(gameContext, scenes.game.player);
+
+	// Make key presses work
+	Key.updateStates();
+	// Set timer for next frame
+	setTimeout(runGame,  33);
 }
 
 
