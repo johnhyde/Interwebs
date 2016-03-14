@@ -171,41 +171,52 @@ function startMainMenu() {
 	startGame();
 }
 function startGame() {
-	scenes.game.player = newEntity([['res/cage.jpg']], 0, 0);
+	// scenes.game.player = newEntity([['res/cage.jpg']], 0, 0);
+	// scenes.game.player.vx = 0;
+	// scenes.game.player.vy = 0;
 	runGame();
 }
 function runGame() {
 	// Movement
-	if (Key.isDown(Key.UP)) {
-		scenes.game.player.y-=8;
-	}
-	if (Key.isDown(Key.DOWN)) {
-		scenes.game.player.y+=8;
-	}
-	if (Key.isDown(Key.LEFT)) {
-		scenes.game.player.x-=8;
-	}
-	if (Key.isDown(Key.RIGHT)) {
-		scenes.game.player.x+=8;
-	}
-	if (Key.getState(Key.UP) === 3) {
-		scenes.game.player.y-=-22;
-	}
-	if (Key.getState(Key.DOWN) === 3) {
-		scenes.game.player.y+=-22;
-	}
-	if (Key.getState(Key.LEFT) === 3) {
-		scenes.game.player.x-=-22;
-	}
-	if (Key.getState(Key.RIGHT) === 3) {
-		scenes.game.player.x+=-22;
-	}
-	pw += ~~((Math.random()-0.5)*8);
+	// if (Key.isDown(Key.UP)) {
+	// 	scenes.game.player.vy-=2;
+	// }
+	// if (Key.isDown(Key.DOWN)) {
+	// 	scenes.game.player.vy+=2;
+	// }
+	// if (Key.isDown(Key.LEFT)) {
+	// 	scenes.game.player.vx-=2;
+	// }
+	// if (Key.isDown(Key.RIGHT)) {
+	// 	scenes.game.player.vx+=2;
+	// }
+	// var slowDown = true;
+	// if (slowDown) {
+	// 	scenes.game.player.vx *= 0.95;
+	// 	scenes.game.player.vy *= 0.95;
+	// }
+	// if (Key.getState(Key.UP) === 3) {
+	// 	scenes.game.player.y-=-22;
+	// }
+	// if (Key.getState(Key.DOWN) === 3) {
+	// 	scenes.game.player.y+=-22;
+	// }
+	// if (Key.getState(Key.LEFT) === 3) {
+	// 	scenes.game.player.x-=-22;
+	// }
+	// if (Key.getState(Key.RIGHT) === 3) {
+	// 	scenes.game.player.x+=-22;
+	// }
+
+	scenes.game.player.x += scenes.game.player.vx;
+	scenes.game.player.y += scenes.game.player.vy;
+
+	// pw += ~~((Math.random()-0.5)*8);
 	// Render
 	gameContext.clearRect(0, 0, gameCanvas[0].width, gameCanvas[0].height);
-	draw(gameContext, newEntity([['res/joe_pass.jpg']], 44, 44));
-	draw(gameContext, newEntity([['res/mystery_font.jpeg']], 0, 0), 0, 0, pw, 222);
-	draw(gameContext, scenes.game.player);
+	// draw(gameContext, newEntity([['res/joe_pass.jpg']], 44, 44));
+	// draw(gameContext, newEntity([['res/mystery_font.jpeg']], 0, 0), 0, 0, pw, 222);
+	// draw(gameContext, scenes.game.player);
 
 	// Make key presses work
 	Key.updateStates();
