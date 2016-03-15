@@ -164,6 +164,7 @@ window.addEventListener('keyup', function(event) { Key.onKeyup(event); }, false)
 window.addEventListener('keydown', function(event) { Key.onKeydown(event); }, false);
 
 // Global variables
+var FPS = 60;
 var scenes = {
 	menu: {},
 	game: {}
@@ -197,16 +198,17 @@ function startMainMenu() {
 	startGame();
 }
 function startGame() {
-	var pointCount = 20;
+	var pointCount = 12;
 	scenes.game = new Entity(null, null, null, gameWidth, gameHeight);
 	circle = new Entity([['res/circle.png']], 0, 0);
+	circle.vrotation = 0;
 	scenes.game.children.circle = circle;
 	for (var i = 0; i < pointCount; i++) {
 		var angle = i*2*Math.PI/pointCount;
 		circle.children['point' + i] = new Entity([['res/point.png']],
 			370*Math.cos(angle), 370*Math.sin(angle));
 	}
-	player = new Entity([['res/cage.jpg']], 200, 200);
+	player = new Entity([['res/cage.jpg']], 0, 0);
 	scenes.game.children.player = player;
 	player.vx = 0;
 	player.vy = 0;
@@ -225,23 +227,24 @@ function runGame() {
 	// 	scenes.game.children.player.vx+=2;
 	// }
 	if (Key.isDown(Key.CLOCKWISE)) {
-		circleRotation += Math.PI/40;
+		circle.vrotation += Math.PI/6;
 	}
 	if (Key.isDown(Key.WIDDERSHINS)) {
-		circleRotation -= Math.PI/40;
+		circle.vrotation -= Math.PI/6;
 	}
+	circle.vrotation *= 0.94;
 
 	if (Key.isDown(Key.UP)) {
-		player.vy -= 3;
+		player.vy -= 90;
 	}
 	if (Key.isDown(Key.DOWN)) {
-		player.vy += 3;
+		player.vy += 90;
 	}
 	if (Key.isDown(Key.LEFT)) {
-		player.vx -= 3;
+		player.vx -= 90;
 	}
 	if (Key.isDown(Key.RIGHT)) {
-		player.vx += 3;
+		player.vx += 90;
 	}
 	var slowDown = true;
 	if (slowDown) {
@@ -261,11 +264,11 @@ function runGame() {
 	// 	player.x += -22;
 	// }
 
-	player.x += player.vx;
-	player.y += player.vy;
+	player.x += player.vx/FPS;
+	player.y += player.vy/FPS;
 	
-	circle.context.rotate(circleRotation); // circle.rotation
-	player.context.rotate(-circleRotation);
+	circle.context.rotate(circle.vrotation/FPS); // circle.rotation
+	player.context.rotate(-circle.vrotation/FPS);
 
 	// pw += ~~((Math.random()-0.5)*8);
 	// Render
@@ -287,8 +290,8 @@ function runGame() {
 	Key.updateStates();
 	// Set timer for next frame
 	var loopLengthMs = ~~(new Date()) - startMs;
-	var timeoutMs = Math.max(33 - loopLengthMs, 0);
-	if (timeoutMs < 20) console.log(timeoutMs);
+	var timeoutMs = Math.max(1000/FPS - loopLengthMs, 0);
+	if (timeoutMs < 700/FPS) console.log("Timout length: " + timeoutMs);
 	setTimeout(runGame,  timeoutMs);
 }
 
