@@ -95,8 +95,6 @@ function Entity(anims, x, y, width, height) {
 	}
 	this.width = width || this.width;
 	this.height = height || this.height;
-	this.width = 2*Math.sqrt(this.width*this.width/4 + this.height*this.height/4);
-	this.height = this.width;
 	document.body.appendChild(this.canvas);
 	this.canvas.width = this.width;
 	this.canvas.height = this.width;
@@ -133,16 +131,14 @@ function draw(context, entity, x, y, width, height) {
 	height = (height !== undefined) ? height : entity.height;
 	// context.drawImage(getImageFromEntity(entity), (x | entity.x), (y | entity.y),
 	//  (width | entity.width), (height | entity.height));
-	entity.context.clearRect(-entity.canvas.width/2, -entity.canvas.height/2,
-		entity.canvas.width, entity.canvas.height);
-	var _image = getImageFromEntity(entity);
-	if (_image) {
-		entity.context.drawImage(_image, -_image.width/2, -_image.height/2);
+	entity.context.clearRect(0, 0, entity.canvas.width, entity.canvas.height);
+	if (getImageFromEntity(entity)) {
+		entity.context.drawImage(getImageFromEntity(entity), 0, 0);
 	}
 	for (var key in entity.children) {
 		draw(entity.context, entity.children[key])
 	}
-	context.drawImage(entity.canvas, x - width/2, y - height/2, width, height);
+	context.drawImage(entity.canvas, x, y, width, height);
 }
 // Setup stuffs
 var gameWidth = 900, gameHeight = 900;
@@ -159,7 +155,6 @@ var gameContext;
 gameCanvas.attr('width', gameWidth);
 gameCanvas.attr('height', gameHeight);
 gameContext = gameCanvas[0].getContext('2d');
-gameContext.translate(gameWidth/2, gameHeight/2);
 window.addEventListener('keyup', function(event) { Key.onKeyup(event); }, false);
 window.addEventListener('keydown', function(event) { Key.onKeydown(event); }, false);
 
@@ -197,14 +192,13 @@ function startMainMenu() {
 	startGame();
 }
 function startGame() {
-	var pointCount = 20;
+	var pointCount = 5;
 	scenes.game = new Entity(null, null, null, gameWidth, gameHeight);
-	circle = new Entity([['res/circle.png']], 0, 0);
+	circle = new Entity([['res/circle.png']], 50, 50);
 	scenes.game.children.circle = circle;
 	for (var i = 0; i < pointCount; i++) {
 		var angle = i*2*Math.PI/pointCount;
-		circle.children['point' + i] = new Entity([['res/point.png']],
-			370*Math.cos(angle), 370*Math.sin(angle));
+		circle.children['point' + i] = new Entity([['res/point.png']], 370 + 370*Math.cos(angle), 370 + 370*Math.sin(angle));
 	}
 	player = new Entity([['res/cage.jpg']], 200, 200);
 	scenes.game.children.player = player;
@@ -225,10 +219,10 @@ function runGame() {
 	// 	scenes.game.children.player.vx+=2;
 	// }
 	if (Key.isDown(Key.CLOCKWISE)) {
-		circleRotation += Math.PI/40;
+		circleRotation += 0.1;
 	}
 	if (Key.isDown(Key.WIDDERSHINS)) {
-		circleRotation -= Math.PI/40;
+		circleRotation -= 0.1;
 	}
 
 	if (Key.isDown(Key.UP)) {
@@ -264,17 +258,12 @@ function runGame() {
 	player.x += player.vx;
 	player.y += player.vy;
 	
-	circle.context.rotate(circleRotation); // circle.rotation
-	player.context.rotate(-circleRotation);
+		circle.context.rotate(circleRotation); // circle.rotation
 
 	// pw += ~~((Math.random()-0.5)*8);
 	// Render
 
-	gameContext.clearRect(-gameCanvas[0].width/2, -gameCanvas[0].height/2,
-		gameCanvas[0].width, gameCanvas[0].height);
-	// gameContext.clearRect(0, 0,
-	// 	gameCanvas[0].width, gameCanvas[0].height);
-	// gameContext.clearRect(-gameCanvas[0].width, -gameCanvas[0].height, 0, 0);
+	gameContext.clearRect(0, 0, gameCanvas[0].width, gameCanvas[0].height);
 	// for (var key in scenes.game) {
 	// 	draw(gameContext, scenes.game[key])
 	// }
