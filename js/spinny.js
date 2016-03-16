@@ -7,8 +7,6 @@ var Key = {
   DOWN: 40,
   CLOCKWISE: 69,
   WIDDERSHINS: 65,
-  JUMP_UP: 188,
-  JUMP_DOWN: 79,
   
   // undefined or 0: Not pressed
   // 1: Just pressed
@@ -51,6 +49,9 @@ var Key = {
 // Define "objects" (I don't really know what I'm doing)
 
 
+function copyJson(json) {
+	return JSON.parse(JSON.stringify(json));
+}
 function Frame(src) {
 	this.src = src;
 	this.image = $('<img src=' + src + '>')[0];
@@ -86,17 +87,16 @@ function Entity(anims, x, y, width, height) {
 	this.rotation = 0;
 	this.width = 0;
 	this.height = 0;
-	this.wraps = false;
 	for (var i = 0; anims && i < anims.length; i++) {
 		var _animation = new Animation(anims[i]);
 		this.animations.push(_animation);
 		this.width = Math.max(this.width, _animation.width);
 		this.height = Math.max(this.height, _animation.height);
 	}
-	this.width = 2*Math.sqrt(this.width*this.width/4 + this.height*this.height/4);
-	this.height = this.width;
 	this.width = width || this.width;
 	this.height = height || this.height;
+	this.width = 2*Math.sqrt(this.width*this.width/4 + this.height*this.height/4);
+	this.height = this.width;
 	document.body.appendChild(this.canvas);
 	this.canvas.width = this.width;
 	this.canvas.height = this.width;
@@ -143,30 +143,9 @@ function draw(context, entity, x, y, width, height) {
 		draw(entity.context, entity.children[key])
 	}
 	context.drawImage(entity.canvas, x - width/2, y - height/2, width, height);
-	if (entity.wraps) {
-		var newX = entity.x, newY = entity.y;
-		if (entity.x - entity.width/2 < -context.canvas.width/2) {
-			newX += context.canvas.width + scenes.game.gap;
-		}
-		if (entity.x + entity.width/2 > context.canvas.width/2) {
-			newX -= context.canvas.width + scenes.game.gap;
-		}
-		if (entity.y - entity.height/2 < -context.canvas.height/2) {
-			newY += context.canvas.height + scenes.game.gap;
-		}
-		if (entity.y + entity.height/2 > context.canvas.height/2) {
-			newY -= context.canvas.height + scenes.game.gap;
-		}
-		if (x !== newX || y !== newY) {
-			context.drawImage(entity.canvas, x - entity.width/2, newY - height/2, width, height);
-			context.drawImage(entity.canvas, newX - entity.width/2, y - height/2, width, height);
-			if (x !== newX && y !== newY)
-			context.drawImage(entity.canvas, newX - entity.width/2, newY - height/2, width, height);
-		}
-	}
 }
 // Setup stuffs
-var gameWidth = 1000, gameHeight = 1000;
+var gameWidth = 900, gameHeight = 900;
 var gameCanvas = $('<canvas id=gameCanvas>');
 $('#gamePane').append(gameCanvas);
 var gameContext;
@@ -190,7 +169,6 @@ var scenes = {
 	menu: {},
 	game: {}
 }
-var cage;
 var player;
 var circle;
 var pw = 444;
@@ -201,27 +179,12 @@ var preloadedImgs = [];
 var preloaded = 0; preloadedTotal = 0
 $.get("js/main.js", function(data) {
 	// debugger;
-	var preUrls = data.match(/["']res((\/\w*)+)(\d){2}\.\w*(?=["'])/g).map(function(str) {
-		return str.slice(1);
-	});
-	if (!preUrls) {
-		startMainMenu();
-		return;
-	}
-	var urls = [];
-	for (var i = 0; i < preUrls.length; i++) {
-		var animLength = ~~(preUrls[i].match(/\d{2}/)[0]) + 1;
-		var pathStart = preUrls[i].slice(0, preUrls[i].regexIndexOf(/\d/));
-		var ext = preUrls[i].slice(preUrls[i].indexOf('.'));
-		for (var j = 0; j < animLength; j++) {
-			urls.push(pathStart + numToStringSpecLength(j, 2) + ext);
-		}
-	}
+	var urls = data.match(/["']res((\/\w*)+)\.\w*(?=["'])/g);
 	preloadedTotal = urls.length;
 	for (var i = 0; i < urls.length; i++) {
 		var img = new Image();
 		preloadedImgs.push(img);
-		preloadedImgs[i].src = urls[i];
+		preloadedImgs[i].src = urls[i].slice(1,urls[i].length);
 		preloadedImgs[i].onload = function() {
 			preloaded++;
 			if (preloaded === preloadedTotal) {
@@ -235,44 +198,20 @@ function startMainMenu() {
 	startGame();
 }
 function startGame() {
-	var pointCount = 12;
+	var pointCount = 6;
 	scenes.game = new Entity(null, null, null, gameWidth, gameHeight);
-	scenes.game.gap = 80;
-	circle = new Entity([['res/circle00.png']], 0, 0);
-	circle.wraps = true;
+	circle = new Entity([['res/circle.png']], 0, 0);
 	circle.vrotation = 0;
-	circle.points = [];
 	scenes.game.children.circle = circle;
 	for (var i = 0; i < pointCount; i++) {
 		var angle = i*2*Math.PI/pointCount;
-		circle.children['point' + i] = new Entity([['res/point00.png']],
+		circle.children['point' + i] = new Entity([['res/point.png']],
 			370*Math.cos(angle), 370*Math.sin(angle));
-		circle.points.push(circle.children['point' + i]);
 	}
-	var playerStartPoint = ~~(Math.random() * circle.points.length);
-	player = new Entity([['res/player00.png']], circle.points[playerStartPoint].x, circle.points[playerStartPoint].y);
-	scenes.game.children.circle.children.player = player;
-	player.pointIndex = playerStartPoint;
-	player.points = [];
-	player.pointsToGoTo = [];
-	player.nextPoint = function() {
-		this.points.push(this.pointIndex);
-		this.pointIndex = this.pointsToGoTo.shift();
-	}
-	player.setPoint = function(index) {
-		this.pointsToGoTo.push(modulo(index, this.pointsToGoTo.length));
-	}
-	player.incrementPoint = function(inc) {
-		var mostRecentPoint = this.pointsToGoTo[this.pointsToGoTo.length - 1];
-		if (mostRecentPoint === undefined) mostRecentPoint = this.pointIndex;
-		this.pointsToGoTo.push(modulo(mostRecentPoint + inc, circle.points.length));
-	}
-	player.speed = 2000;
-	cage = new Entity([['res/cage00.jpg']], 0, 0/*, 80, 80*/);
-	cage.wraps = true;
-	scenes.game.children.cage = cage;
-	cage.vx = 0;
-	cage.vy = 0;
+	player = new Entity([['res/cage.jpg']], 0, 0);
+	scenes.game.children.player = player;
+	player.vx = 0;
+	player.vy = 0;
 	runGame();
 }
 function runGame() {
@@ -282,92 +221,55 @@ function runGame() {
 	var circleRotation = 0;
 
 	// if (Key.isDown(Key.LEFT)) {
-	// 	scenes.game.children.cage.vx-=2;
+	// 	scenes.game.children.player.vx-=2;
 	// }
 	// if (Key.isDown(Key.RIGHT)) {
-	// 	scenes.game.children.cage.vx+=2;
+	// 	scenes.game.children.player.vx+=2;
 	// }
-	if (Key.getState(Key.JUMP_UP) === 1) {
-		player.incrementPoint(1);
+	if (Key.isDown(Key.CLOCKWISE)) {
+		circle.vrotation += Math.PI/6;
 	}
-	if (Key.getState(Key.JUMP_DOWN) === 1) {
-		player.incrementPoint(-1);
+	if (Key.isDown(Key.WIDDERSHINS)) {
+		circle.vrotation -= Math.PI/6;
 	}
-	if (Key.getState(Key.CLOCKWISE) === 1) {
-		circle.vrotation += Math.PI/circle.points.length;
-	}
-	if (Key.getState(Key.WIDDERSHINS) === 1) {
-		circle.vrotation -= Math.PI/circle.points.length;
-	}
-	// circle.vrotation *= 0.94;
+	circle.vrotation *= 0.94;
 
 	if (Key.isDown(Key.UP)) {
-		cage.vy -= 90;
+		player.vy -= 90;
 	}
 	if (Key.isDown(Key.DOWN)) {
-		cage.vy += 90;
+		player.vy += 90;
 	}
 	if (Key.isDown(Key.LEFT)) {
-		cage.vx -= 90;
+		player.vx -= 90;
 	}
 	if (Key.isDown(Key.RIGHT)) {
-		cage.vx += 90;
+		player.vx += 90;
 	}
 	var slowDown = true;
 	if (slowDown) {
-		cage.vx *= 0.95;
-		cage.vy *= 0.95;
+		player.vx *= 0.95;
+		player.vy *= 0.95;
 	}
 	// if (Key.getState(Key.UP) === 3) {
-	// 	cage.y -= -22;
+	// 	player.y -= -22;
 	// }
 	// if (Key.getState(Key.DOWN) === 3) {
-	// 	cage.y += -22;
+	// 	player.y += -22;
 	// }
 	// if (Key.getState(Key.LEFT) === 3) {
-	// 	cage.x -= -22;
+	// 	player.x -= -22;
 	// }
 	// if (Key.getState(Key.RIGHT) === 3) {
-	// 	cage.x += -22;
+	// 	player.x += -22;
 	// }
 
-	cage.x += cage.vx/FPS;
-	cage.y += cage.vy/FPS;
-	var offx = gameWidth + scenes.game.gap;
-	var offy = gameHeight + scenes.game.gap;
-	// cage.x = (((cage.x + offx/2)% offx)+offx)%offx -offx/2;
-	// cage.y = (((cage.y + offy/2)% offy)+offy)%offy -offy/2;
-	cage.x = modulo(cage.x + offx/2, offx) - offx/2;
-	cage.y = modulo(cage.y + offy/2, offy) - offy/2;
-
-	// player.pointIndex = modulo(player.pointIndex, circle.points.length);
-	var playerPoint = circle.points[player.pointIndex];
-	if (!playerPoint) debugger;
-	var dx = playerPoint.x - player.x;
-	var dy = playerPoint.y - player.y;
-	if (Math.abs(dx) > 0.5 || Math.abs(dy) > 0.5) {
-		var distance = pythag(dx, dy);
-		var totalDx = playerPoint.x - circle.points[player.points[player.points.length-1]].x;
-		var totalDy = playerPoint.y - circle.points[player.points[player.points.length-1]].y;
-		var totalDistance = pythag(totalDx, totalDy);
-		var vRatio = 2*distance/totalDistance;
-		vRatio = Math.sqrt(distance/totalDistance);
-		// vRatio *= vRatio;
-		vRatio -= 0.1;
-		var playerAngle = Math.atan2(dy, dx);
-		var speedMult = Math.max(0.6, vRatio*player.speed/FPS);
-		player.x += speedMult * Math.cos(playerAngle);
-		player.y += speedMult * Math.sin(playerAngle);
-	}
-	else if (player.pointsToGoTo.length !== 0) {
-		player.nextPoint();
-	}
-
-	// player.x = circle.points[player.pointIndex].x;
-	// player.y = circle.points[player.pointIndex].y;
+	player.x += player.vx/FPS;
+	player.y += player.vy/FPS;
+	player.x = (((player.x + gameWidth/2)% gameWidth)+gameWidth)%gameWidth -gameWidth/2;
+	player.y = (((player.y + gameHeight/2)% gameHeight)+gameHeight)%gameHeight -gameHeight/2;
 	
 	circle.context.rotate(circle.vrotation/FPS); // circle.rotation
-	// cage.context.rotate(-circle.vrotation);
 	player.context.rotate(-circle.vrotation/FPS);
 
 	// pw += ~~((Math.random()-0.5)*8);
@@ -384,7 +286,7 @@ function runGame() {
 	draw(gameContext, scenes.game)
 	// draw(gameContext, new Entity([['res/joe_pass.jpg']], 44, 44));
 	// draw(gameContext, new Entity([['res/mystery_font.jpeg']], 0, 0), 0, 0, pw, 222);
-	// draw(gameContext, scenes.game.children.cage);
+	// draw(gameContext, scenes.game.children.player);
 
 	// Make key presses work
 	Key.updateStates();
