@@ -249,6 +249,19 @@ function startGame() {
 			370*Math.cos(angle), 370*Math.sin(angle));
 		circle.points.push(circle.children['point' + i]);
 	}
+	circle.rotationsToDo = [];
+	circle.getOpposingPoint = function(index) {
+		var reflectAngle = modulo(-circle.rotation, 2*Math.PI);
+		var reflectAngleR = modulo(reflectAngle + Math.PI, 2*Math.PI);
+		var radsPerPoint = 2*Math.PI/circle.points.length;	
+		var pointAngle = index*radsPerPoint;
+		if (Math.abs(pointAngle - reflectAngle) < 0.005 || Math.abs(pointAngle - reflectAngleR) < 0.005) {
+			return index + circle.points.length/2;
+		}
+		else {
+			return index - Math.round(2*(pointAngle - reflectAngle)/radsPerPoint);
+		}
+	}
 	var playerStartPoint = ~~(Math.random() * circle.points.length);
 	player = new Entity([['res/player00.png']], circle.points[playerStartPoint].x, circle.points[playerStartPoint].y);
 	scenes.game.children.circle.children.player = player;
@@ -259,18 +272,27 @@ function startGame() {
 		this.points.push(this.pointIndex);
 		this.pointIndex = this.pointsToGoTo.shift();
 	}
+	player.getLatestPoint = function() {
+		return (player.points.length!==0)?player.points[player.points.length-1]:player.pointIndex;
+	}
+	player.getNewestPoint = function() {
+		return (player.pointsToGoTo.length!==0)?player.pointsToGoTo[player.pointsToGoTo.length-1]:player.pointIndex;
+	}
 	player.setPoint = function(index) {
-		this.pointsToGoTo.push(modulo(index, this.pointsToGoTo.length));
+		this.pointsToGoTo.push(modulo(index, circle.points.length));
 	}
 	player.incrementPoint = function(inc) {
 		var mostRecentPoint = this.pointsToGoTo[this.pointsToGoTo.length - 1];
 		if (mostRecentPoint === undefined) mostRecentPoint = this.pointIndex;
 		this.pointsToGoTo.push(modulo(mostRecentPoint + inc, circle.points.length));
 	}
-	player.speed = 2000;
+	player.jumpPoint = function() {
+		this.setPoint(circle.getOpposingPoint(this.getNewestPoint()));
+	}
+	player.speed = 4000;
 	cage = new Entity([['res/cage00.jpg']], 0, 0/*, 80, 80*/);
 	cage.wraps = true;
-	scenes.game.children.cage = cage;
+	// scenes.game.children.cage = cage;
 	cage.vx = 0;
 	cage.vy = 0;
 	runGame();
@@ -288,16 +310,20 @@ function runGame() {
 	// 	scenes.game.children.cage.vx+=2;
 	// }
 	if (Key.getState(Key.JUMP_UP) === 1) {
-		player.incrementPoint(1);
+		// player.incrementPoint(1);
+		player.jumpPoint();
 	}
 	if (Key.getState(Key.JUMP_DOWN) === 1) {
-		player.incrementPoint(-1);
+		// player.incrementPoint(-1);
+		player.jumpPoint();
 	}
 	if (Key.getState(Key.CLOCKWISE) === 1) {
-		circle.vrotation += Math.PI/circle.points.length;
+		// circle.vrotation += Math.PI/circle.points.length;
+		circle.rotationsToDo.push(1);
 	}
 	if (Key.getState(Key.WIDDERSHINS) === 1) {
-		circle.vrotation -= Math.PI/circle.points.length;
+		// circle.vrotation -= Math.PI/circle.points.length;
+		circle.rotationsToDo.push(-1);
 	}
 	// circle.vrotation *= 0.94;
 
@@ -345,30 +371,40 @@ function runGame() {
 	if (!playerPoint) debugger;
 	var dx = playerPoint.x - player.x;
 	var dy = playerPoint.y - player.y;
-	if (Math.abs(dx) > 0.5 || Math.abs(dy) > 0.5) {
+	if (Math.abs(dx) > 2 || Math.abs(dy) > 2) {
 		var distance = pythag(dx, dy);
 		var totalDx = playerPoint.x - circle.points[player.points[player.points.length-1]].x;
 		var totalDy = playerPoint.y - circle.points[player.points[player.points.length-1]].y;
 		var totalDistance = pythag(totalDx, totalDy);
-		var vRatio = 2*distance/totalDistance;
+		var vRatio = Math.min(1, distance/totalDistance + 0.4);
 		vRatio = Math.sqrt(distance/totalDistance);
 		// vRatio *= vRatio;
 		vRatio -= 0.1;
 		var playerAngle = Math.atan2(dy, dx);
-		var speedMult = Math.max(0.6, vRatio*player.speed/FPS);
+		var speedMult = Math.max(2, vRatio*player.speed/FPS);
 		player.x += speedMult * Math.cos(playerAngle);
 		player.y += speedMult * Math.sin(playerAngle);
 	}
-	else if (player.pointsToGoTo.length !== 0) {
-		player.nextPoint();
+	else {
+		player.x = circle.points[player.pointIndex].x;
+		player.y = circle.points[player.pointIndex].y;
+		if (player.pointsToGoTo.length !== 0) {
+			player.nextPoint();
+		}
 	}
 
 	// player.x = circle.points[player.pointIndex].x;
 	// player.y = circle.points[player.pointIndex].y;
-	
-	circle.context.rotate(circle.vrotation/FPS); // circle.rotation
-	// cage.context.rotate(-circle.vrotation);
-	player.context.rotate(-circle.vrotation/FPS);
+	if (circle.rotationsToDo.length !== 0) {
+		var rotation = circle.rotationsToDo.shift() * (Math.PI/circle.points.length);
+		// circle.context.rotate(circle.vrotation/FPS); // circle.rotation
+		// cage.context.rotate(-circle.vrotation);
+		// player.context.rotate(-circle.vrotation/FPS);
+		circle.rotation += rotation;
+		player.rotation -= rotation;
+		circle.context.rotate(rotation);
+		player.context.rotate(-rotation);
+	}
 
 	// pw += ~~((Math.random()-0.5)*8);
 	// Render

@@ -20,6 +20,12 @@ String.prototype.regexLastIndexOf = function(regex, startpos) {
     return lastIndexOf;
 }
 
+CanvasRenderingContext2D.prototype.setRotation = function(ang) {
+    var angCos = Math.cos(ang);
+    var angSin = Math.sin(ang);
+    this.setTransform(angCos, angSin, -angSin, angCos, 0, 0);
+}
+
 function copyJson(json) {
     return JSON.parse(JSON.stringify(json));
 }
