@@ -64,7 +64,7 @@ function Frame(src) {
 }
 function Animation(srcs) {
 	this.frames = [];
-	this.currentframe = 0;
+	this.currentFrame = 0;
 	this.type = "loop"; // loop | loopRev | once | onceRev | pong | pongRev
 	this.width = 0;
 	this.height = 0;
@@ -107,7 +107,7 @@ function getAnimation(entity) {
 	return (entity.animations)?entity.animations[entity.currentAnimation]:null;
 }
 function getFrame(animation) {
-	return (animation.frames)?animation.frames[animation.currentframe]:null;
+	return (animation.frames)?animation.frames[animation.currentFrame]:null;
 }
 function getImageFromEntity(entity) {
 	var anim = getAnimation(entity);
@@ -249,6 +249,7 @@ function startGame() {
 			370*Math.cos(angle), 370*Math.sin(angle));
 		circle.points.push(circle.children['point' + i]);
 	}
+	circle.currentRotation = 0;
 	circle.rotationsToDo = [];
 	circle.getOpposingPoint = function(index) {
 		var reflectAngle = modulo(-circle.rotation, 2*Math.PI);
@@ -373,17 +374,20 @@ function runGame() {
 	var dy = playerPoint.y - player.y;
 	if (Math.abs(dx) > 2 || Math.abs(dy) > 2) {
 		var distance = pythag(dx, dy);
-		var totalDx = playerPoint.x - circle.points[player.points[player.points.length-1]].x;
-		var totalDy = playerPoint.y - circle.points[player.points[player.points.length-1]].y;
+		var lastPoint = circle.points[player.getLatestPoint()];
+		var totalDx = playerPoint.x - lastPoint.x;
+		var totalDy = playerPoint.y - lastPoint.y;
 		var totalDistance = pythag(totalDx, totalDy);
-		var vRatio = Math.min(1, distance/totalDistance + 0.4);
-		vRatio = Math.sqrt(distance/totalDistance);
-		// vRatio *= vRatio;
-		vRatio -= 0.1;
-		var playerAngle = Math.atan2(dy, dx);
-		var speedMult = Math.max(2, vRatio*player.speed/FPS);
-		player.x += speedMult * Math.cos(playerAngle);
-		player.y += speedMult * Math.sin(playerAngle);
+		// var vRatio = Math.min(1, distance/totalDistance + 0.4);
+		// vRatio = Math.sqrt(distance/totalDistance);
+		// // vRatio *= vRatio;
+		// vRatio -= 0.1;
+		// var playerAngle = Math.atan2(dy, dx);
+		// var speedMult = Math.max(2, vRatio*player.speed/FPS);
+		// player.x += speedMult * Math.cos(playerAngle);
+		// player.y += speedMult * Math.sin(playerAngle);
+		player.x = (totalDx !== 0)?(playerPoint.x - Math.max(0, dx/totalDx - 9/FPS)*totalDx):playerPoint.x;
+		player.y = (totalDy !== 0)?(playerPoint.y - Math.max(0, dy/totalDy - 9/FPS)*totalDy):playerPoint.y;
 	}
 	else {
 		player.x = circle.points[player.pointIndex].x;
@@ -395,15 +399,16 @@ function runGame() {
 
 	// player.x = circle.points[player.pointIndex].x;
 	// player.y = circle.points[player.pointIndex].y;
-	if (circle.rotationsToDo.length !== 0) {
-		var rotation = circle.rotationsToDo.shift() * (Math.PI/circle.points.length);
+	if (circle.currentRotation !== 0) {
+		var rotation = 
 		// circle.context.rotate(circle.vrotation/FPS); // circle.rotation
 		// cage.context.rotate(-circle.vrotation);
 		// player.context.rotate(-circle.vrotation/FPS);
-		circle.rotation += rotation;
-		player.rotation -= rotation;
+		circle.rotation += rotation/(600/FPS);
+		player.rotation -= rotation/(600/FPS);
 		circle.context.rotate(rotation);
 		player.context.rotate(-rotation);
+		var rotation = circle.rotationsToDo.shift() * (Math.PI/circle.points.length);
 	}
 
 	// pw += ~~((Math.random()-0.5)*8);
