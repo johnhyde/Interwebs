@@ -23,8 +23,18 @@ String.prototype.regexLastIndexOf = function(regex, startpos) {
 CanvasRenderingContext2D.prototype.setRotation = function(ang) {
     var angCos = Math.cos(ang);
     var angSin = Math.sin(ang);
-    this.setTransform(angCos, angSin, -angSin, angCos, 0, 0);
+    this.setTransform(angCos, angSin, -angSin, angCos, this.canvas.width/2, this.canvas.height/2);
 }
+
+CanvasRenderingContext2D.prototype.drawLine = function(x1, y1, x2, y2) {
+    this.beginPath();
+    this.moveTo(x1,y1);
+    this.lineTo(x2, y2);
+    this.stroke();
+    this.closePath();
+}
+
+
 
 function copyJson(json) {
     return JSON.parse(JSON.stringify(json));

@@ -1,5 +1,6 @@
 var Key = {
   _pressed: {},
+  secret: '',
 
   LEFT: 37,
   UP: 38,
@@ -9,6 +10,7 @@ var Key = {
   WIDDERSHINS: 65,
   JUMP_UP: 188,
   JUMP_DOWN: 79,
+  CAGE: 187,
   
   // undefined or 0: Not pressed
   // 1: Just pressed
@@ -34,6 +36,7 @@ var Key = {
   onKeyup: function(event) {
     this._pressed[event.keyCode] = 3;
     console.log("Key released:" + event.keyCode);
+    this.secret = (this.secret + String.fromCharCode(event.keyCode)).slice(-20);
   },
 
   updateStates: function() {
@@ -139,9 +142,47 @@ function draw(context, entity, x, y, width, height) {
 	if (_image) {
 		entity.context.drawImage(_image, -_image.width/2, -_image.height/2);
 	}
-	for (var key in entity.children) {
-		draw(entity.context, entity.children[key])
+	if (entity === circle) {
+		for (var key in entity.children) {
+			if (key ==="player" && player.netPoints.length !== 0) {
+				// Draw Lines
+				circle.context.lineWidth = 10;
+				circle.context.lineCap = "round";
+				circle.context.lineJoin = "round";
+				// circle.context.strokeStyle = "#666666";
+				circle.context.beginPath();
+				var firstPoint = circle.points[player.netPoints[0]];
+			    circle.context.moveTo(firstPoint.x, firstPoint.y);
+				for (var i = 0; i < player.netPoints.length; i++) {
+					var digit = ~~(10*(i/player.netPoints.length));
+					var color = '#';
+					for (var j = 0; j < 6; j++) {
+						color += digit;
+					}
+					circle.context.stokeStyle = color;
+					// console.log(color);
+					// circle.context.stokeStyle = "#222222";
+					var point1 = circle.points[player.netPoints[i]];
+					var point2 = (i === player.netPoints.length-1)?player:circle.points[player.netPoints[i+1]];
+					// circle.context.drawLine(point1.x, point1.y, point2.x, point2.y); this.beginPath();
+				    circle.context.lineTo(point2.x, point2.y);
+				    // circle.context.stroke();
+				    // circle.context.moveTo(point1.x, point1.y);
+				}
+				circle.context.lineTo(player.x, player.y);
+				circle.context.stroke();
+				circle.context.closePath();
+			}
+			draw(entity.context, entity.children[key])
+		}
 	}
+	else {
+
+		for (var key in entity.children) {
+			draw(entity.context, entity.children[key])
+		}
+	}
+
 	context.drawImage(entity.canvas, x - width/2, y - height/2, width, height);
 	if (entity.wraps) {
 		var newX = entity.x, newY = entity.y;
@@ -185,7 +226,7 @@ window.addEventListener('keyup', function(event) { Key.onKeyup(event); }, false)
 window.addEventListener('keydown', function(event) { Key.onKeydown(event); }, false);
 
 // Global variables
-var FPS = 60;
+var FPS = 30;
 var scenes = {
 	menu: {},
 	game: {}
@@ -193,7 +234,7 @@ var scenes = {
 var cage;
 var player;
 var circle;
-var pw = 444;
+var pointCount = 20;
 
 
 // Preload them resources
@@ -235,7 +276,6 @@ function startMainMenu() {
 	startGame();
 }
 function startGame() {
-	var pointCount = 12;
 	scenes.game = new Entity(null, null, null, gameWidth, gameHeight);
 	scenes.game.gap = 80;
 	circle = new Entity([['res/circle00.png']], 0, 0);
@@ -256,7 +296,10 @@ function startGame() {
 		var reflectAngleR = modulo(reflectAngle + Math.PI, 2*Math.PI);
 		var radsPerPoint = 2*Math.PI/circle.points.length;	
 		var pointAngle = index*radsPerPoint;
-		if (Math.abs(pointAngle - reflectAngle) < 0.005 || Math.abs(pointAngle - reflectAngleR) < 0.005) {
+		var diff = modulo(pointAngle - reflectAngle, 2*Math.PI);
+		var diffR = modulo(pointAngle - reflectAngleR, 2*Math.PI);
+		if (Math.abs(2*Math.PI - diff) < 0.005 || Math.abs(2*Math.PI - diffR) < 0.005 ||
+			Math.abs(diff) < 0.005 || Math.abs(diffR) < 0.005) {
 			return index + circle.points.length/2;
 		}
 		else {
@@ -268,9 +311,11 @@ function startGame() {
 	scenes.game.children.circle.children.player = player;
 	player.pointIndex = playerStartPoint;
 	player.points = [];
+	player.netPoints = [];
 	player.pointsToGoTo = [];
 	player.nextPoint = function() {
 		this.points.push(this.pointIndex);
+		this.netPoints.push(this.pointIndex);
 		this.pointIndex = this.pointsToGoTo.shift();
 	}
 	player.getLatestPoint = function() {
@@ -304,12 +349,12 @@ function runGame() {
 	// Movement
 	var circleRotation = 0;
 
-	// if (Key.isDown(Key.LEFT)) {
-	// 	scenes.game.children.cage.vx-=2;
-	// }
-	// if (Key.isDown(Key.RIGHT)) {
-	// 	scenes.game.children.cage.vx+=2;
-	// }
+	if (Key.isDown(Key.LEFT)) {
+		cage.vx-=2;
+	}
+	if (Key.isDown(Key.RIGHT)) {
+		cage.vx+=2;
+	}
 	if (Key.getState(Key.JUMP_UP) === 1) {
 		// player.incrementPoint(1);
 		player.jumpPoint();
@@ -318,16 +363,26 @@ function runGame() {
 		// player.incrementPoint(-1);
 		player.jumpPoint();
 	}
-	if (Key.getState(Key.CLOCKWISE) === 1) {
+	if (Key.getState(Key.CLOCKWISE) === 1 || 
+		(Key.getState(Key.CLOCKWISE) === 2 && circle.rotationsToDo.length === 0 && circle.currentRotation === 0)) {
 		// circle.vrotation += Math.PI/circle.points.length;
 		circle.rotationsToDo.push(1);
 	}
-	if (Key.getState(Key.WIDDERSHINS) === 1) {
+	if (Key.getState(Key.WIDDERSHINS) === 1 ||
+		(Key.getState(Key.WIDDERSHINS) === 2 && circle.rotationsToDo.length === 0 && circle.currentRotation === 0)) {
 		// circle.vrotation -= Math.PI/circle.points.length;
 		circle.rotationsToDo.push(-1);
 	}
-	// circle.vrotation *= 0.94;
 
+	if (Key.getState(Key.CAGE) === 1 || Key.secret.indexOf('CAGE') !== -1) {
+		if (!scenes.game.children.cage) {
+			scenes.game.children.cage = cage;
+		}
+		else {
+			delete scenes.game.children['cage'];
+		}
+		Key.secret = Key.secret.slice(Key.secret.indexOf('CAGE') + 4);
+	}
 	if (Key.isDown(Key.UP)) {
 		cage.vy -= 90;
 	}
@@ -345,19 +400,17 @@ function runGame() {
 		cage.vx *= 0.95;
 		cage.vy *= 0.95;
 	}
-	// if (Key.getState(Key.UP) === 3) {
-	// 	cage.y -= -22;
-	// }
-	// if (Key.getState(Key.DOWN) === 3) {
-	// 	cage.y += -22;
-	// }
-	// if (Key.getState(Key.LEFT) === 3) {
-	// 	cage.x -= -22;
-	// }
-	// if (Key.getState(Key.RIGHT) === 3) {
-	// 	cage.x += -22;
+
+	// pointCount += 0.001
+	// circle.points = [];
+	// for (var i = 0; i < pointCount; i++) {
+	// 	var angle = i*2*Math.PI/pointCount;
+	// 	circle.children['point' + i] = new Entity([['res/point00.png']],
+	// 		370*Math.cos(angle), 370*Math.sin(angle));
+	// 	circle.points.push(circle.children['point' + i]);
 	// }
 
+	// Cage movement
 	cage.x += cage.vx/FPS;
 	cage.y += cage.vy/FPS;
 	var offx = gameWidth + scenes.game.gap;
@@ -367,12 +420,18 @@ function runGame() {
 	cage.x = modulo(cage.x + offx/2, offx) - offx/2;
 	cage.y = modulo(cage.y + offy/2, offy) - offy/2;
 
+
+	// Player movement
 	// player.pointIndex = modulo(player.pointIndex, circle.points.length);
+	var playerArrived = false;
 	var playerPoint = circle.points[player.pointIndex];
 	if (!playerPoint) debugger;
 	var dx = playerPoint.x - player.x;
 	var dy = playerPoint.y - player.y;
 	if (Math.abs(dx) > 2 || Math.abs(dy) > 2) {
+		if (player.pointIndex === player.netPoints[player.netPoints.length-2]) { // Erase net if backtracking
+			player.netPoints.pop();
+		}
 		var distance = pythag(dx, dy);
 		var lastPoint = circle.points[player.getLatestPoint()];
 		var totalDx = playerPoint.x - lastPoint.x;
@@ -390,28 +449,64 @@ function runGame() {
 		player.y = (totalDy !== 0)?(playerPoint.y - Math.max(0, dy/totalDy - 9/FPS)*totalDy):playerPoint.y;
 	}
 	else {
+		if (player.pointIndex === player.netPoints[player.netPoints.length-1]) { // Erase net if backtracking
+			player.netPoints.pop();
+		}
 		player.x = circle.points[player.pointIndex].x;
 		player.y = circle.points[player.pointIndex].y;
 		if (player.pointsToGoTo.length !== 0) {
 			player.nextPoint();
 		}
+		else {
+			playerArrived = true;
+		}
 	}
 
+	// Collapse closed nets
+	if (player.netPoints.length !== 0) {
+		for (var i = 0; i < player.netPoints.length; i++) {
+			for (var j = i + 1; j < player.netPoints.length + 1; j++) {
+				if (j === player.netPoints.length) {
+					if (player.netPoints[i] === player.pointIndex && playerArrived) {
+						player.netPoints.splice(i);
+					}
+				}
+				else {
+					if (player.netPoints[i] === player.netPoints[j]) {
+						player.netPoints.splice(i,j);
+					}
+				}
+			}
+
+		}
+	}
+
+	// Circle Rotation
+	var radsPerPoint = Math.PI/circle.points.length;
+	var rotation = 12/FPS;
+
+	// var radRotation = 0;
 	// player.x = circle.points[player.pointIndex].x;
 	// player.y = circle.points[player.pointIndex].y;
-	if (circle.currentRotation !== 0) {
-		var rotation = 
-		// circle.context.rotate(circle.vrotation/FPS); // circle.rotation
-		// cage.context.rotate(-circle.vrotation);
-		// player.context.rotate(-circle.vrotation/FPS);
-		circle.rotation += rotation/(600/FPS);
-		player.rotation -= rotation/(600/FPS);
-		circle.context.rotate(rotation);
-		player.context.rotate(-rotation);
-		var rotation = circle.rotationsToDo.shift() * (Math.PI/circle.points.length);
+	if (Math.abs(circle.currentRotation) <= rotation/2) {
+		circle.rotation = radsPerPoint*Math.round(circle.rotation/radsPerPoint);
+		// radRotation += circle.currentRotation*radsPerPoint;
+		circle.currentRotation = 0;
+		if (circle.rotationsToDo.length !== 0) {
+			circle.currentRotation = circle.rotationsToDo.shift();
+		}
 	}
+	if (Math.abs(circle.currentRotation) > rotation/2) {
+		if (circle.currentRotation < 0) rotation = -rotation;
+		var radRotation = (Math.PI/circle.points.length)*rotation;
+		circle.rotation += radRotation;
+		player.rotation -= radRotation;
+		circle.currentRotation -= rotation;
+		cage.context.rotate(-rotation);
+	}
+	circle.context.setRotation(circle.rotation);
+	player.context.setRotation(player.rotation);
 
-	// pw += ~~((Math.random()-0.5)*8);
 	// Render
 
 	gameContext.clearRect(-gameCanvas[0].width/2, -gameCanvas[0].height/2,
@@ -429,11 +524,19 @@ function runGame() {
 
 	// Make key presses work
 	Key.updateStates();
+
 	// Set timer for next frame
 	var loopLengthMs = ~~(new Date()) - startMs;
+	if (loopLengthMs > 700/FPS) console.log('Loop duration: ' + loopLengthMs + 'ms');
+	var FPSMult = 0;
+	if (loopLengthMs > 900/FPS) FPS = 30;
+	if (loopLengthMs < 400/FPS) FPS = 60;
+	// if (loopLengthMs > 900/FPS) FPSMult = 0.9;
+	// if (loopLengthMs < 600/FPS) FPSMult = 1.1;
+	// FPS *= FPSMult;
 	var timeoutMs = Math.max(1000/FPS - loopLengthMs, 0);
-	if (timeoutMs < 700/FPS) console.log("Timout length: " + timeoutMs);
 	setTimeout(runGame,  timeoutMs);
+	// setTimeout(runGame,  100);
 }
 
 
