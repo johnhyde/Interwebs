@@ -10,6 +10,7 @@ var Key = {
   WIDDERSHINS: 65,
   JUMP_UP: 188,
   JUMP_DOWN: 79,
+  JUMP_ACROSS: 32,
   CAGE: 187,
   
   // undefined or 0: Not pressed
@@ -233,8 +234,9 @@ var scenes = {
 }
 var cage;
 var player;
+var mark;
 var circle;
-var pointCount = 20;
+var pointCount = 12;
 
 
 // Preload them resources
@@ -312,6 +314,7 @@ function startGame() {
 	player.pointIndex = playerStartPoint;
 	player.points = [];
 	player.netPoints = [];
+	player.nettedPoints = [[]];
 	player.pointsToGoTo = [];
 	player.nextPoint = function() {
 		this.points.push(this.pointIndex);
@@ -335,12 +338,17 @@ function startGame() {
 	player.jumpPoint = function() {
 		this.setPoint(circle.getOpposingPoint(this.getNewestPoint()));
 	}
+	player.jumpAcross = function() {
+		this.setPoint(this.getNewestPoint()+circle.points.length/2);
+	}
 	player.speed = 4000;
 	cage = new Entity([['res/cage00.jpg']], 0, 0/*, 80, 80*/);
 	cage.wraps = true;
 	// scenes.game.children.cage = cage;
 	cage.vx = 0;
 	cage.vy = 0;
+	mark = new Entity([['res/player00.png']]);
+	// circle.children.mark = mark;
 	runGame();
 }
 function runGame() {
@@ -362,6 +370,10 @@ function runGame() {
 	if (Key.getState(Key.JUMP_DOWN) === 1) {
 		// player.incrementPoint(-1);
 		player.jumpPoint();
+	}
+	if (Key.getState(Key.JUMP_ACROSS) === 1) {
+		// player.incrementPoint(-1);
+		player.jumpAcross();
 	}
 	if (Key.getState(Key.CLOCKWISE) === 1 || 
 		(Key.getState(Key.CLOCKWISE) === 2 && circle.rotationsToDo.length === 0 && circle.currentRotation === 0)) {
@@ -464,20 +476,70 @@ function runGame() {
 
 	// Collapse closed nets
 	if (player.netPoints.length !== 0) {
-		for (var i = 0; i < player.netPoints.length; i++) {
+		for (var i = 0; i < player.netPoints.length-1; i++) {
 			for (var j = i + 1; j < player.netPoints.length + 1; j++) {
+				var startNet = 0;
+				var endNet = player.netPoints.length;
+				var closed = false;
 				if (j === player.netPoints.length) {
-					if (player.netPoints[i] === player.pointIndex && playerArrived) {
-						player.netPoints.splice(i);
+					if (player.netPoints[i] === player.pointIndex /*&& playerArrived*/) {
+						startNet = i+1;
+						closed = true;
 					}
 				}
 				else {
 					if (player.netPoints[i] === player.netPoints[j]) {
-						player.netPoints.splice(i,j);
+						startNet = i;
+						endNet = j;
+						closed = true;
 					}
 				}
+				if (j > i + 1 && j < player.netPoints.length && !closed) {
+					var p1 = player.netPoints[i];
+					var p2 = player.netPoints[i+1];
+					var p3 = player.netPoints[j];
+					var p4 = 0;
+					if (j + 1 < player.netPoints.length) {
+						p4 = player.netPoints[j+1];
+					}
+					else if (j < player.netPoints.length) {
+						if (!playerArrived) break;
+						p4 = player.pointIndex;
+					}
+					if (p1 > p2) {
+						var tempP = p2;
+						p2 = p1;
+						p1 = tempP;
+					}
+					// console.log('p1: ' + p1 + ', p2: ' + p2 + ', p3: ' + p3 + ', p4: ' + p4);
+					if (p3 > p1 && p3 < p2) {
+						if (!(p4 > p1 && p4 < p2)) {
+							closed = true;
+						}
+					}
+					else {
+						if (p4 > p1 && p4 < p2) {
+							closed = true;
+						}
+					}
+					if (closed) {
+						// startNet = Math.max(player.netPoints.lastIndexOf();
+						startNet = i + 1;
+						endNet = Math.min(player.netPoints.length, j + 1);
+						var pnts = circle.points;
+						var intersection = getIntersection(pnts[p1].x, pnts[p1].y, pnts[p2].x, pnts[p2].y,
+							pnts[p3].x, pnts[p3].y, pnts[p4].x, pnts[p4].y);
+						mark.x = intersection.x;
+						mark.y = intersection.y;
+					}
+				}
+				if (closed) {
+					// var player.netPoints.splice(startNet, endNet).map(function(key) {
+					// 	return [circle.points[key].x, circle.points[key].y];
+					// });
+					player.netPoints.splice(startNet, endNet)
+				}		
 			}
-
 		}
 	}
 

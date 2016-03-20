@@ -55,10 +55,27 @@ function numToStringSpecLength(num, length) {
 }
 
 function modulo(num1, num2) {
-
     return ((num1 % num2)+num2)%num2;
 }
 
 function pythag(a, b) {
     return Math.sqrt(a*a + b*b);
 }
+
+function getIntersection(ax1, ay1, ax2, ay2, bx1, by1, bx2, by2) {
+    var theta_a = Math.atan2(ay2-ay1, ax2-ax1);
+    var theta_b = Math.PI - Math.atan2(by2-by1, bx2-bx1);
+    var dx = ax2-bx2;
+    var dy = ay2-by2;
+    var theta_ab = Math.atan2(dy, dx);
+    var theta_1 = theta_b + theta_ab;
+    var theta_2 = theta_a - theta_ab;
+    var l1 = pythag(dx, dy);
+    var l2 = l1*(Math.sin(theta_1)/Math.sin(2*Math.PI-(theta_1+theta_2)));
+    return {
+        x: ax2 + Math.cos(theta_a)*l2,
+        y: ay2 + Math.sin(theta_a)*l2
+    }
+}
+
+

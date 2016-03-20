@@ -1,0 +1,14 @@
+TODO:
+- Animation support
+- Actual artwork
+- Story / Context
+- Gameplay
+	- Things to collect
+	- Collecting things
+		!! Disappear closed nets
+	!! Fresh net when space bar jumping
+	!! Dynamically determined jump destinations
+	- Enemies
+	- Point Effects
+	? Varying # of points
+		- Fix crash
