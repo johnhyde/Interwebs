@@ -474,13 +474,14 @@ function runGame() {
 		}
 	}
 
-	// Collapse closed nets
+	// Detect and collapse closed nets
 	if (player.netPoints.length !== 0) {
 		for (var i = 0; i < player.netPoints.length-1; i++) {
 			for (var j = i + 1; j < player.netPoints.length + 1; j++) {
 				var startNet = 0;
 				var endNet = player.netPoints.length;
 				var closed = false;
+				// Player 
 				if (j === player.netPoints.length) {
 					if (player.netPoints[i] === player.pointIndex /*&& playerArrived*/) {
 						startNet = i+1;
@@ -494,6 +495,7 @@ function runGame() {
 						closed = true;
 					}
 				}
+				// Lines crossing
 				if (j > i + 1 && j < player.netPoints.length && !closed) {
 					var p1 = player.netPoints[i];
 					var p2 = player.netPoints[i+1];
