@@ -3,11 +3,10 @@ TODO:
 - Actual artwork
 - Story / Context
 - Gameplay
-	- Things to collect
 	- Collecting things
+		- Spawn stuff
 		!! Disappear closed nets
-	!! Fresh net when space bar jumping
-	!! Dynamically determined jump destinations
+		!! Collapsing leftover web animation
 	- Enemies
 	- Point Effects
 	? Varying # of points

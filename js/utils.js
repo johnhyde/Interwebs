@@ -4,7 +4,8 @@ String.prototype.regexIndexOf = function(regex, startpos) {
 }
 
 String.prototype.regexLastIndexOf = function(regex, startpos) {
-    regex = (regex.global) ? regex : new RegExp(regex.source, "g" + (regex.ignoreCase ? "i" : "") + (regex.multiLine ? "m" : ""));
+    regex = (regex.global) ? regex : new RegExp(regex.source, "g" + (regex.ignoreCase ? "i" : "")
+        + (regex.multiLine ? "m" : ""));
     if(typeof (startpos) == "undefined") {
         startpos = this.length;
     } else if(startpos < 0) {
@@ -61,7 +62,9 @@ function modulo(num1, num2) {
 function pythag(a, b) {
     return Math.sqrt(a*a + b*b);
 }
-
+function getPointIntersection(a1, a2, b1, b2) {
+    return getIntersection(a1.x, a1.y, a2.x, a2.y, b1.x, b1.y, b2.x, b2.y)
+}
 function getIntersection(ax1, ay1, ax2, ay2, bx1, by1, bx2, by2) {
     var theta_a = Math.atan2(ay2-ay1, ax2-ax1);
     var theta_b = Math.PI - Math.atan2(by2-by1, bx2-bx1);
@@ -77,5 +80,31 @@ function getIntersection(ax1, ay1, ax2, ay2, bx1, by1, bx2, by2) {
         y: ay2 + Math.sin(theta_a)*l2
     }
 }
+function pointOnSegment(a, b, p) { // a and b are ends of line segment. p is point
+    var x1, x2, y1, y2;
+    x1 = Math.min(a.x,b.x);
+    x2 = Math.max(a.x,b.x);
+    y1 = Math.min(a.y,b.y);
+    y2 = Math.max(a.y,b.y);
+    var wobble = 2;
+    if (!(p.x >= x1-wobble && p.x <= x2+wobble && p.y >= y1-wobble && p.y <= y2+wobble)) {
+        return false;
+    }
+    else {
+        var theta1 = Math.atan2(b.y - p.y, b.x - p.x);
+        var theta2 = Math.atan2(b.y - a.y, b.x - a.x);
+        return (Math.abs(theta1 - theta2) < 0.1);
+    }
+}
+function intersects(a1, a2, b1, b2) {
+    var intersection = getPointIntersection(a1, a2, b1, b2);
+    if (pointOnSegment(a1, a2, intersection) && pointOnSegment(b1, b2, intersection)) {
+        return intersection;
+    }
+    else {
+        return false;
+    }
+}
+
 
 

@@ -1,6 +1,7 @@
 var Key = {
   _pressed: {},
   secret: '',
+  qwerty: false,
 
   LEFT: 37,
   UP: 38,
@@ -8,8 +9,7 @@ var Key = {
   DOWN: 40,
   CLOCKWISE: 69,
   WIDDERSHINS: 65,
-  JUMP_UP: 188,
-  JUMP_DOWN: 79,
+  JUMP: 79,
   JUMP_ACROSS: 32,
   CAGE: 187,
   
@@ -150,25 +150,19 @@ function draw(context, entity, x, y, width, height) {
 				circle.context.lineWidth = 10;
 				circle.context.lineCap = "round";
 				circle.context.lineJoin = "round";
-				// circle.context.strokeStyle = "#666666";
+				// var grd=circle.context.createLinearGradient(0,0,170,0);
+				// grd.addColorStop(0,"black");
+				// grd.addColorStop(1,"#999999");
+				// circle.context.strokeStyle = grd;
+				circle.context.strokeStyle = '#222222';
 				circle.context.beginPath();
-				var firstPoint = circle.points[player.netPoints[0]];
+				var firstPoint = player.netPoints[0];
 			    circle.context.moveTo(firstPoint.x, firstPoint.y);
-				for (var i = 0; i < player.netPoints.length; i++) {
-					var digit = ~~(10*(i/player.netPoints.length));
-					var color = '#';
-					for (var j = 0; j < 6; j++) {
-						color += digit;
-					}
-					circle.context.stokeStyle = color;
-					// console.log(color);
-					// circle.context.stokeStyle = "#222222";
-					var point1 = circle.points[player.netPoints[i]];
-					var point2 = (i === player.netPoints.length-1)?player:circle.points[player.netPoints[i+1]];
+				for (var i = 1; i < player.netPoints.length; i++) {
+					var point2;
+					point2 = player.netPoints[i];
 					// circle.context.drawLine(point1.x, point1.y, point2.x, point2.y); this.beginPath();
 				    circle.context.lineTo(point2.x, point2.y);
-				    // circle.context.stroke();
-				    // circle.context.moveTo(point1.x, point1.y);
 				}
 				circle.context.lineTo(player.x, player.y);
 				circle.context.stroke();
@@ -188,16 +182,16 @@ function draw(context, entity, x, y, width, height) {
 	if (entity.wraps) {
 		var newX = entity.x, newY = entity.y;
 		if (entity.x - entity.width/2 < -context.canvas.width/2) {
-			newX += context.canvas.width + scenes.game.gap;
+			newX += context.canvas.width + game.gap;
 		}
 		if (entity.x + entity.width/2 > context.canvas.width/2) {
-			newX -= context.canvas.width + scenes.game.gap;
+			newX -= context.canvas.width + game.gap;
 		}
 		if (entity.y - entity.height/2 < -context.canvas.height/2) {
-			newY += context.canvas.height + scenes.game.gap;
+			newY += context.canvas.height + game.gap;
 		}
 		if (entity.y + entity.height/2 > context.canvas.height/2) {
-			newY -= context.canvas.height + scenes.game.gap;
+			newY -= context.canvas.height + game.gap;
 		}
 		if (x !== newX || y !== newY) {
 			context.drawImage(entity.canvas, x - entity.width/2, newY - height/2, width, height);
@@ -225,6 +219,10 @@ gameContext = gameCanvas[0].getContext('2d');
 gameContext.translate(gameWidth/2, gameHeight/2);
 window.addEventListener('keyup', function(event) { Key.onKeyup(event); }, false);
 window.addEventListener('keydown', function(event) { Key.onKeydown(event); }, false);
+if (Key.qwerty) {
+	Key.CLOCKWISE = 68;
+	Key.JUMP = 83;
+}
 
 // Global variables
 var FPS = 30;
@@ -232,6 +230,7 @@ var scenes = {
 	menu: {},
 	game: {}
 }
+var game;
 var cage;
 var player;
 var mark;
@@ -279,12 +278,13 @@ function startMainMenu() {
 }
 function startGame() {
 	scenes.game = new Entity(null, null, null, gameWidth, gameHeight);
-	scenes.game.gap = 80;
+	game = scenes.game;
+	game.gap = 80;
 	circle = new Entity([['res/circle00.png']], 0, 0);
 	circle.wraps = true;
 	circle.vrotation = 0;
 	circle.points = [];
-	scenes.game.children.circle = circle;
+	game.children.circle = circle;
 	for (var i = 0; i < pointCount; i++) {
 		var angle = i*2*Math.PI/pointCount;
 		circle.children['point' + i] = new Entity([['res/point00.png']],
@@ -310,7 +310,7 @@ function startGame() {
 	}
 	var playerStartPoint = ~~(Math.random() * circle.points.length);
 	player = new Entity([['res/player00.png']], circle.points[playerStartPoint].x, circle.points[playerStartPoint].y);
-	scenes.game.children.circle.children.player = player;
+	game.children.circle.children.player = player;
 	player.pointIndex = playerStartPoint;
 	player.points = [];
 	player.netPoints = [];
@@ -318,8 +318,21 @@ function startGame() {
 	player.pointsToGoTo = [];
 	player.nextPoint = function() {
 		this.points.push(this.pointIndex);
-		this.netPoints.push(this.pointIndex);
-		this.pointIndex = this.pointsToGoTo.shift();
+		this.netPoints.push(circle.points[this.pointIndex]);
+		// this.pointIndex = this.pointsToGoTo.shift();
+		var dest = this.pointsToGoTo.shift();
+		if (Number.isInteger(dest)) {
+			this.pointIndex = dest;
+		}
+		else switch ('' + dest) {
+			case 'flip':
+				 this.setPoint(circle.getOpposingPoint(this.pointIndex));
+				 break;
+			case 'across':
+				 this.setPoint(this.pointIndex + circle.points.length/2, circle.points.length);
+				 this.netPoints = [];
+				 break;
+		}
 	}
 	player.getLatestPoint = function() {
 		return (player.points.length!==0)?player.points[player.points.length-1]:player.pointIndex;
@@ -328,6 +341,9 @@ function startGame() {
 		return (player.pointsToGoTo.length!==0)?player.pointsToGoTo[player.pointsToGoTo.length-1]:player.pointIndex;
 	}
 	player.setPoint = function(index) {
+		this.pointIndex = modulo(index, circle.points.length);
+	}
+	player.addPoint = function(index) {
 		this.pointsToGoTo.push(modulo(index, circle.points.length));
 	}
 	player.incrementPoint = function(inc) {
@@ -336,15 +352,15 @@ function startGame() {
 		this.pointsToGoTo.push(modulo(mostRecentPoint + inc, circle.points.length));
 	}
 	player.jumpPoint = function() {
-		this.setPoint(circle.getOpposingPoint(this.getNewestPoint()));
+		this.pointsToGoTo.push('flip');
 	}
 	player.jumpAcross = function() {
-		this.setPoint(this.getNewestPoint()+circle.points.length/2);
+		this.pointsToGoTo.push('across');
 	}
 	player.speed = 4000;
 	cage = new Entity([['res/cage00.jpg']], 0, 0/*, 80, 80*/);
 	cage.wraps = true;
-	// scenes.game.children.cage = cage;
+	// game.children.cage = cage;
 	cage.vx = 0;
 	cage.vy = 0;
 	mark = new Entity([['res/player00.png']]);
@@ -363,11 +379,7 @@ function runGame() {
 	if (Key.isDown(Key.RIGHT)) {
 		cage.vx+=2;
 	}
-	if (Key.getState(Key.JUMP_UP) === 1) {
-		// player.incrementPoint(1);
-		player.jumpPoint();
-	}
-	if (Key.getState(Key.JUMP_DOWN) === 1) {
+	if (Key.getState(Key.JUMP) === 1) {
 		// player.incrementPoint(-1);
 		player.jumpPoint();
 	}
@@ -387,11 +399,11 @@ function runGame() {
 	}
 
 	if (Key.getState(Key.CAGE) === 1 || Key.secret.indexOf('CAGE') !== -1) {
-		if (!scenes.game.children.cage) {
-			scenes.game.children.cage = cage;
+		if (!game.children.cage) {
+			game.children.cage = cage;
 		}
 		else {
-			delete scenes.game.children['cage'];
+			delete game.children['cage'];
 		}
 		Key.secret = Key.secret.slice(Key.secret.indexOf('CAGE') + 4);
 	}
@@ -425,8 +437,8 @@ function runGame() {
 	// Cage movement
 	cage.x += cage.vx/FPS;
 	cage.y += cage.vy/FPS;
-	var offx = gameWidth + scenes.game.gap;
-	var offy = gameHeight + scenes.game.gap;
+	var offx = gameWidth + game.gap;
+	var offy = gameHeight + game.gap;
 	// cage.x = (((cage.x + offx/2)% offx)+offx)%offx -offx/2;
 	// cage.y = (((cage.y + offy/2)% offy)+offy)%offy -offy/2;
 	cage.x = modulo(cage.x + offx/2, offx) - offx/2;
@@ -441,7 +453,7 @@ function runGame() {
 	var dx = playerPoint.x - player.x;
 	var dy = playerPoint.y - player.y;
 	if (Math.abs(dx) > 2 || Math.abs(dy) > 2) {
-		if (player.pointIndex === player.netPoints[player.netPoints.length-2]) { // Erase net if backtracking
+		if (circle.points[player.pointIndex] === player.netPoints[player.netPoints.length-2]) { // Erase net if backtracking
 			player.netPoints.pop();
 		}
 		var distance = pythag(dx, dy);
@@ -461,7 +473,7 @@ function runGame() {
 		player.y = (totalDy !== 0)?(playerPoint.y - Math.max(0, dy/totalDy - 9/FPS)*totalDy):playerPoint.y;
 	}
 	else {
-		if (player.pointIndex === player.netPoints[player.netPoints.length-1]) { // Erase net if backtracking
+		if (circle.points[player.pointIndex] === player.netPoints[player.netPoints.length-1]) { // Erase net if backtracking
 			player.netPoints.pop();
 		}
 		player.x = circle.points[player.pointIndex].x;
@@ -483,7 +495,7 @@ function runGame() {
 				var closed = false;
 				// Player 
 				if (j === player.netPoints.length) {
-					if (player.netPoints[i] === player.pointIndex /*&& playerArrived*/) {
+					if (player.netPoints[i] === circle.points[player.pointIndex] /*&& playerArrived*/) {
 						startNet = i+1;
 						closed = true;
 					}
@@ -496,6 +508,7 @@ function runGame() {
 					}
 				}
 				// Lines crossing
+				var intersection;
 				if (j > i + 1 && j < player.netPoints.length && !closed) {
 					var p1 = player.netPoints[i];
 					var p2 = player.netPoints[i+1];
@@ -506,40 +519,43 @@ function runGame() {
 					}
 					else if (j < player.netPoints.length) {
 						if (!playerArrived) break;
-						p4 = player.pointIndex;
+						p4 = circle.points[player.pointIndex];
 					}
-					if (p1 > p2) {
-						var tempP = p2;
-						p2 = p1;
-						p1 = tempP;
-					}
-					// console.log('p1: ' + p1 + ', p2: ' + p2 + ', p3: ' + p3 + ', p4: ' + p4);
-					if (p3 > p1 && p3 < p2) {
-						if (!(p4 > p1 && p4 < p2)) {
-							closed = true;
-						}
-					}
-					else {
-						if (p4 > p1 && p4 < p2) {
-							closed = true;
-						}
-					}
-					if (closed) {
+					// if (p1 > p2) {
+					// 	var tempP = p2;
+					// 	p2 = p1;
+					// 	p1 = tempP;
+					// }
+					// // console.log('p1: ' + p1 + ', p2: ' + p2 + ', p3: ' + p3 + ', p4: ' + p4);
+					// if (p3 > p1 && p3 < p2) {
+					// 	if (!(p4 > p1 && p4 < p2)) {
+					// 		closed = true;
+					// 	}
+					// }
+					// else {
+					// 	if (p4 > p1 && p4 < p2) {
+					// 		closed = true;
+					// 	}
+					// }
+					intersection = intersects(p1, p2, p3, p4);
+					if (intersection) {
+						closed = true;
 						// startNet = Math.max(player.netPoints.lastIndexOf();
 						startNet = i + 1;
 						endNet = Math.min(player.netPoints.length, j + 1);
-						var pnts = circle.points;
-						var intersection = getIntersection(pnts[p1].x, pnts[p1].y, pnts[p2].x, pnts[p2].y,
-							pnts[p3].x, pnts[p3].y, pnts[p4].x, pnts[p4].y);
 						mark.x = intersection.x;
 						mark.y = intersection.y;
 					}
+
 				}
 				if (closed) {
 					// var player.netPoints.splice(startNet, endNet).map(function(key) {
 					// 	return [circle.points[key].x, circle.points[key].y];
 					// });
 					player.netPoints.splice(startNet, endNet)
+					if (intersection) {
+						player.netPoints.push(intersection);
+					}
 				}		
 			}
 		}
@@ -578,13 +594,13 @@ function runGame() {
 	// gameContext.clearRect(0, 0,
 	// 	gameCanvas[0].width, gameCanvas[0].height);
 	// gameContext.clearRect(-gameCanvas[0].width, -gameCanvas[0].height, 0, 0);
-	// for (var key in scenes.game) {
-	// 	draw(gameContext, scenes.game[key])
+	// for (var key in game) {
+	// 	draw(gameContext, game[key])
 	// }
-	draw(gameContext, scenes.game)
+	draw(gameContext, game)
 	// draw(gameContext, new Entity([['res/joe_pass.jpg']], 44, 44));
 	// draw(gameContext, new Entity([['res/mystery_font.jpeg']], 0, 0), 0, 0, pw, 222);
-	// draw(gameContext, scenes.game.children.cage);
+	// draw(gameContext, game.children.cage);
 
 	// Make key presses work
 	Key.updateStates();
