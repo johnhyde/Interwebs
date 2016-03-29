@@ -145,28 +145,46 @@ function draw(context, entity, x, y, width, height) {
 	}
 	if (entity === circle) {
 		for (var key in entity.children) {
-			if (key ==="player" && player.netPoints.length !== 0) {
+			if (key ==="player") {
 				// Draw Lines
 				circle.context.lineWidth = 10;
 				circle.context.lineCap = "round";
 				circle.context.lineJoin = "round";
-				// var grd=circle.context.createLinearGradient(0,0,170,0);
-				// grd.addColorStop(0,"black");
-				// grd.addColorStop(1,"#999999");
-				// circle.context.strokeStyle = grd;
 				circle.context.strokeStyle = '#222222';
-				circle.context.beginPath();
-				var firstPoint = player.netPoints[0];
-			    circle.context.moveTo(firstPoint.x, firstPoint.y);
-				for (var i = 1; i < player.netPoints.length; i++) {
-					var point2;
-					point2 = player.netPoints[i];
-					// circle.context.drawLine(point1.x, point1.y, point2.x, point2.y); this.beginPath();
-				    circle.context.lineTo(point2.x, point2.y);
+				// Draw current net
+				if (player.netPoints.length !== 0) {
+					circle.context.beginPath();
+					var firstPoint = player.netPoints[0];
+				    circle.context.moveTo(firstPoint.x, firstPoint.y);
+	
+					for (var i = 1; i < player.netPoints.length; i++) {
+						var point2 = player.netPoints[i];
+						// circle.context.drawLine(point1.x, point1.y, point2.x, point2.y); this.beginPath();
+					    circle.context.lineTo(point2.x, point2.y);
+					}
+					circle.context.lineTo(player.x, player.y);
+					circle.context.stroke();
+					circle.context.closePath();
 				}
-				circle.context.lineTo(player.x, player.y);
-				circle.context.stroke();
-				circle.context.closePath();
+				// Draw closed nets
+				for (var i = 0; i < player.nettedPoints.length; i++) {
+					// if (player.nettedPoints[i].length === 0) {
+					// 	player.nettedPoints.splice(i,i+1);
+					// 	i--;
+					// 	break;
+					// }
+					circle.context.beginPath();
+					firstPoint = player.nettedPoints[i][0];
+				    circle.context.moveTo(firstPoint[0], firstPoint[1]);
+				    for (var j = 1; j < player.nettedPoints[i].length; j++) {
+						var point2 = player.nettedPoints[i][j];
+						// circle.context.drawLine(point1.x, point1.y, point2.x, point2.y); this.beginPath();
+					    circle.context.lineTo(point2[0], point2[1]);
+					}
+					circle.context.lineTo(firstPoint[0], firstPoint[1]);
+					circle.context.stroke();
+					circle.context.closePath();
+				}
 			}
 			draw(entity.context, entity.children[key])
 		}
@@ -236,6 +254,7 @@ var player;
 var mark;
 var circle;
 var pointCount = 12;
+var pointDistance = 370;
 
 
 // Preload them resources
@@ -288,7 +307,7 @@ function startGame() {
 	for (var i = 0; i < pointCount; i++) {
 		var angle = i*2*Math.PI/pointCount;
 		circle.children['point' + i] = new Entity([['res/point00.png']],
-			370*Math.cos(angle), 370*Math.sin(angle));
+			pointDistance*Math.cos(angle), 370*Math.sin(angle));
 		circle.points.push(circle.children['point' + i]);
 	}
 	circle.currentRotation = 0;
@@ -314,7 +333,7 @@ function startGame() {
 	player.pointIndex = playerStartPoint;
 	player.points = [];
 	player.netPoints = [];
-	player.nettedPoints = [[]];
+	player.nettedPoints = [];
 	player.pointsToGoTo = [];
 	player.nextPoint = function() {
 		this.points.push(this.pointIndex);
@@ -453,7 +472,8 @@ function runGame() {
 	var dx = playerPoint.x - player.x;
 	var dy = playerPoint.y - player.y;
 	if (Math.abs(dx) > 2 || Math.abs(dy) > 2) {
-		if (circle.points[player.pointIndex] === player.netPoints[player.netPoints.length-2]) { // Erase net if backtracking
+		// Erase net if backtracking
+		if (circle.points[player.pointIndex] === player.netPoints[player.netPoints.length-2]) {
 			player.netPoints.pop();
 		}
 		var distance = pythag(dx, dy);
@@ -473,7 +493,8 @@ function runGame() {
 		player.y = (totalDy !== 0)?(playerPoint.y - Math.max(0, dy/totalDy - 9/FPS)*totalDy):playerPoint.y;
 	}
 	else {
-		if (circle.points[player.pointIndex] === player.netPoints[player.netPoints.length-1]) { // Erase net if backtracking
+		// Erase net if backtracking
+		if (circle.points[player.pointIndex] === player.netPoints[player.netPoints.length-1]) {
 			player.netPoints.pop();
 		}
 		player.x = circle.points[player.pointIndex].x;
@@ -486,18 +507,67 @@ function runGame() {
 		}
 	}
 
-	// Detect and collapse closed nets
+	// Move lines into proper places
+	for (var i = 0; i < player.netPoints.length; i++) {
+		var point = player.netPoints[i];
+		if (circle.points.indexOf(point) === -1) {
+			var lineSpeed = 1200;
+			var dist = pythag(point.x, point.y);
+			var dest1 = {
+				x: player.x,
+				y: player.y
+			}
+			var dest2 = {
+				x: player.x,
+				y: player.y
+			}
+			if (i > 0) {
+				dest1.x = player.netPoints[i-1].x;
+				dest1.y = player.netPoints[i-1].y;
+			}
+			if (i+1 < player.netPoints.length) {
+				dest2.x = player.netPoints[i+1].x;
+				dest2.y = player.netPoints[i+1].y;
+			}
+			var dest = {
+				x: (dest1.x + dest2.x)/2,
+				y: (dest1.y + dest2.y)/2,
+			}
+
+			if (Math.abs(dest.x-point.x) <= lineSpeed/FPS && Math.abs(dest.y-point.y) <= lineSpeed/FPS) {
+				player.netPoints.splice(i,i+1);
+				i--;
+			}
+			else {
+				// var dest = {
+				// 	x: (dist + 120/FPS)*Math.cos(angle),
+				// 	y: (dist + 120/FPS)*Math.sin(angle)
+				// }
+
+				var angle = Math.atan2(dest.y-point.y, dest.x-point.x);
+				player.netPoints[i].x += (lineSpeed/FPS)*Math.cos(angle);
+				player.netPoints[i].y += (lineSpeed/FPS)*Math.sin(angle);
+				// var dx = playerPoint.x - player.x;
+				// var dy = playerPoint.y - player.y;
+			}
+		}
+	}
+
+	// Detect and separate closed nets
 	if (player.netPoints.length !== 0) {
-		for (var i = 0; i < player.netPoints.length-1; i++) {
+		for (var i = player.netPoints.length-3; i >= 0; i--) {
+			var closed = false;
+			var playerIncluded = false;
 			for (var j = i + 1; j < player.netPoints.length + 1; j++) {
-				var startNet = 0;
-				var endNet = player.netPoints.length;
-				var closed = false;
+				var startNet = [];
+				var endNet = [];
 				// Player 
 				if (j === player.netPoints.length) {
-					if (player.netPoints[i] === circle.points[player.pointIndex] /*&& playerArrived*/) {
-						startNet = i+1;
+					if (player.netPoints[i] === circle.points[player.pointIndex] && playerArrived) {
+						startNet.push(i+1);
+						endNet.push(player.netPoints.length);
 						closed = true;
+						playerIncluded = true;
 					}
 				}
 				else {
@@ -518,8 +588,11 @@ function runGame() {
 						p4 = player.netPoints[j+1];
 					}
 					else if (j < player.netPoints.length) {
-						if (!playerArrived) break;
-						p4 = circle.points[player.pointIndex];
+						// if (!playerArrived) break;
+						p4 = {
+							x: player.x,
+							y: player.y
+						};
 					}
 					// if (p1 > p2) {
 					// 	var tempP = p2;
@@ -541,8 +614,8 @@ function runGame() {
 					if (intersection) {
 						closed = true;
 						// startNet = Math.max(player.netPoints.lastIndexOf();
-						startNet = i + 1;
-						endNet = Math.min(player.netPoints.length, j + 1);
+						startNet.push(i + 1);
+						endNet.push(Math.min(player.netPoints.length, j + 1));
 						mark.x = intersection.x;
 						mark.y = intersection.y;
 					}
@@ -552,15 +625,49 @@ function runGame() {
 					// var player.netPoints.splice(startNet, endNet).map(function(key) {
 					// 	return [circle.points[key].x, circle.points[key].y];
 					// });
-					player.netPoints.splice(startNet, endNet)
+					var net = player.netPoints.splice([startNet], [endNet]);
 					if (intersection) {
 						player.netPoints.push(intersection);
+						net.push(copyObject(intersection));
 					}
+					if (playerIncluded) {
+						net.push({x:player.x, y:player.y});
+					}
+					player.nettedPoints.push(toCoordinates(net));
+					break;
 				}		
 			}
 		}
 	}
 
+	// Collapse closed nets
+	for (var i = 0; i < player.nettedPoints.length; i++) {
+		var scaleFactor = 2;
+		var maxX = 0;
+		var maxY = 0;
+		var avgX = 0;
+		var avgY = 0;
+		for (var j = 0; j < player.nettedPoints[i].length; j++) {
+			avgX += player.nettedPoints[i][j][0];
+			avgY += player.nettedPoints[i][j][1];
+		}
+		avgX /= player.nettedPoints[i].length;
+		avgY /= player.nettedPoints[i].length;
+		for (var j = 0; j < player.nettedPoints[i].length; j++) {
+			maxX = Math.max(maxX, Math.abs(avgX - player.nettedPoints[i][j][0]));
+			maxY = Math.max(maxY, Math.abs(avgY - player.nettedPoints[i][j][1]));
+		}
+		if (maxX < 2 && maxY < 2) {
+			player.nettedPoints.splice(i, i+1);
+			i--;
+			break;
+		}
+		player.nettedPoints[i] = math.add(player.nettedPoints[i], math.matrix().resize([player.nettedPoints[i].length],[-avgX, -avgY]).toArray());
+		// math.add(player.nettedPoints[i], [avgX, avgY]);
+		player.nettedPoints[i] = math.multiply(player.nettedPoints[i], [[1 - (scaleFactor)/FPS,0],[0,1 - (scaleFactor)/FPS]]);
+		player.nettedPoints[i] = math.add(player.nettedPoints[i], math.matrix().resize([player.nettedPoints[i].length],[avgX, avgY]).toArray());
+		// math.add(player.nettedPoints[i], [-avgX, -avgY]);
+	}
 	// Circle Rotation
 	var radsPerPoint = Math.PI/circle.points.length;
 	var rotation = 12/FPS;

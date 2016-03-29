@@ -4,9 +4,7 @@ TODO:
 - Story / Context
 - Gameplay
 	- Collecting things
-		- Spawn stuff
-		!! Disappear closed nets
-		!! Collapsing leftover web animation
+		!! Spawn stuff
 	- Enemies
 	- Point Effects
 	? Varying # of points

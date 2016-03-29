@@ -37,8 +37,8 @@ CanvasRenderingContext2D.prototype.drawLine = function(x1, y1, x2, y2) {
 
 
 
-function copyJson(json) {
-    return JSON.parse(JSON.stringify(json));
+function copyObject(obj) {
+    return JSON.parse(JSON.stringify(obj));
 }
 
 function numToStringSpecLength(num, length) {
@@ -105,6 +105,14 @@ function intersects(a1, a2, b1, b2) {
         return false;
     }
 }
+function toCoordinates(array) {
+    return array.map(function(obj) {
+        return [obj.x, obj.y];
+    })
+}
+
+
+
 
 
 
