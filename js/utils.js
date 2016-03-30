@@ -36,7 +36,9 @@ CanvasRenderingContext2D.prototype.drawLine = function(x1, y1, x2, y2) {
 }
 
 
-
+function nud(a,b) { //not undefined
+    return (a===undefined)?b:a;
+}
 function copyObject(obj) {
     return JSON.parse(JSON.stringify(obj));
 }
@@ -61,6 +63,12 @@ function modulo(num1, num2) {
 
 function pythag(a, b) {
     return Math.sqrt(a*a + b*b);
+}
+function isPointLeft(a1, a2, b){
+     return isLeft(nud(a1.x,a1[0]), nud(a1.y,a1[1]), nud(a2.x,a2[0]), nud(a2.y,a2[1]), nud(b.x,b[0]), nud(b.y,b[1]));
+}
+function isLeft(a1x, a1y, a2x, a2y, bx, by){
+     return ((a2x - a1x)*(by - a1y) - (a2y - a1y)*(bx - a1x)) > 0;
 }
 function getPointIntersection(a1, a2, b1, b2) {
     return getIntersection(a1.x, a1.y, a2.x, a2.y, b1.x, b1.y, b2.x, b2.y)
@@ -107,8 +115,36 @@ function intersects(a1, a2, b1, b2) {
 }
 function toCoordinates(array) {
     return array.map(function(obj) {
-        return [obj.x, obj.y];
+        return [nud(obj.x,obj[0]), nud(obj.y,obj[1])];
     })
+}
+function applyCoordinates(objects, coords) {
+    for (var i in objects) {
+        objects[i].x = nud(coords[i][0],coords[i].x);
+        objects[i].y = nud(coords[i][1],coords[i].y);
+    }
+}
+function insidePolygon(x, y, coordinates) {
+    var coords = toCoordinates(coordinates);
+    // Winding Number Inclusion algorithm. Thanks to http://geomalgorithms.com/a03-_inclusion.html
+    var wn = 0; // winding number counter
+    // loop through all edges of the polygon
+    for (var i = 0; i < coords.length; i++) {
+        var j = modulo(i+1, coords.length);
+        // if (!isPointLeft(coords[i], coords[j], [x,y])) {
+        //     continue;
+        // }
+        if (coords[i][1] > y && coords[j][1] <= y)  {
+            if (!isPointLeft(coords[i], coords[j], [x,y]))    // Rule #4
+                 --wn;   // a valid up intersect right of P.x
+        }
+        else
+        if (coords[i][1] <= y && coords[j][1] > y) {
+            if (isPointLeft(coords[i], coords[j], [x,y]))   // Rule #4
+                 ++wn;   // a valid down intersect right of P.x
+        }
+    }
+    return wn !== 0;    // =0 <=> P is outside the polygon
 }
 
 
