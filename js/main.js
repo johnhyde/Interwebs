@@ -670,7 +670,6 @@ function runGame() {
 					for (var k = items.length-1; k >= 0; k--) {
 						if (insidePolygon(items[k].x, items[k].y, net)) {
 							player.score++;
-							document.getElementById('score').innerHTML = "Score: " + player.score;
 							items.splice(k,k+1);
 						}
 					}
@@ -753,6 +752,10 @@ function runGame() {
 	// 	draw(gameContext, game[key])
 	// }
 	draw(gameContext, game);
+	var fontSize = 50;
+	gameContext.font = fontSize + "px Georgia";
+	gameContext.fillText("Score: " + player.score, -gameWidth/2 + 20, -gameHeight/2 + fontSize + 10);
+
 	// draw(gameContext, new Entity([['res/joe_pass.jpg']], 44, 44));
 	// draw(gameContext, new Entity([['res/mystery_font.jpeg']], 0, 0), 0, 0, pw, 222);
 	// draw(gameContext, game.subs.cage);
