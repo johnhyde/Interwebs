@@ -99,8 +99,8 @@ function pointOnSegment(a, b, p) { // a and b are ends of line segment. p is poi
         return false;
     }
     else {
-        var theta1 = Math.atan2(b.y - p.y, b.x - p.x);
-        var theta2 = Math.atan2(b.y - a.y, b.x - a.x);
+        var theta1 = modulo(Math.atan2(b.y - p.y, b.x - p.x), 2*Math.PI);
+        var theta2 = modulo(Math.atan2(b.y - a.y, b.x - a.x), 2*Math.PI);
         return (Math.abs(theta1 - theta2) < 0.1);
     }
 }

@@ -1,10 +1,12 @@
 TODO:
 - Animation support
+- Scaling of images
 - Actual artwork
 - Story / Context
 - Gameplay
 	- Collecting things
-		!! Spawn stuff
+		!! Move items nicely
+	!! More items
 	- Enemies
 	- Point Effects
 	? Varying # of points
