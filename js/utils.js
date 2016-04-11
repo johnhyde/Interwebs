@@ -113,19 +113,19 @@ function intersects(a1, a2, b1, b2) {
         return false;
     }
 }
-function toCoordinates(array) {
+function toCoords(array) {
     return array.map(function(obj) {
         return [nud(obj.x,obj[0]), nud(obj.y,obj[1])];
     })
 }
-function applyCoordinates(objects, coords) {
+function applyCoords(objects, coords) {
     for (var i in objects) {
         objects[i].x = nud(coords[i][0],coords[i].x);
         objects[i].y = nud(coords[i][1],coords[i].y);
     }
 }
 function insidePolygon(x, y, coordinates) {
-    var coords = toCoordinates(coordinates);
+    var coords = toCoords(coordinates);
     // Winding Number Inclusion algorithm. Thanks to http://geomalgorithms.com/a03-_inclusion.html
     var wn = 0; // winding number counter
     // loop through all edges of the polygon
@@ -145,6 +145,17 @@ function insidePolygon(x, y, coordinates) {
         }
     }
     return wn !== 0;    // =0 <=> P is outside the polygon
+}
+
+function scaleCoords(icoords, scaleFactor, offX, offY) {
+    var coords = copyObject(icoords);
+    var coords = math.add(coords,
+            math.matrix().resize([coords.length],[-offX, -offY]).toArray());
+    coords = math.multiply(coords,
+        [[1 - scaleFactor,0],[0,1 - scaleFactor]]);
+    coords = math.add(coords,
+        math.matrix().resize([coords.length],[offX, offY]).toArray());
+    return coords;
 }
 
 

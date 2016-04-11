@@ -175,16 +175,16 @@ function draw(context, entity, x, y, width, height) {
 					}
 					// Draw closed nets
 					for (var i = 0; i < player.nets.length; i++) {
-						// if (player.nets[i].length === 0) {
+						// if (player.nets[i].points.length === 0) {
 						// 	player.nets.splice(i,i+1);
 						// 	i--;
 						// 	break;
 						// }
 						circle.context.beginPath();
-						firstPoint = player.nets[i][0];
+						firstPoint = player.nets[i].points[0];
 					    circle.context.moveTo(firstPoint[0], firstPoint[1]);
-					    for (var j = 1; j < player.nets[i].length; j++) {
-							var point2 = player.nets[i][j];
+					    for (var j = 1; j < player.nets[i].points.length; j++) {
+							var point2 = player.nets[i].points[j];
 							// circle.context.drawLine(point1.x, point1.y, point2.x, point2.y); this.beginPath();
 						    circle.context.lineTo(point2[0], point2[1]);
 						}
@@ -530,12 +530,13 @@ function runGame() {
 		var newItem = new Entity([['res/item00.png']],
 			dist*Math.cos(angle), dist*Math.sin(angle));
 		newItem.type = 'basic';
+		newItem.lifeTime = 4000;
 		items.push(newItem);
 	}
 
 	// Update items
 	for (var i = items.length-1; i >= 0; i--) {
-		if (new Date().valueOf() - items[i].startTime > 4*1000) {
+		if (new Date().valueOf() - items[i].startTime > items[i].lifeTime) {
 			items.splice(i,i+1);
 		}
 	}
@@ -667,14 +668,17 @@ function runGame() {
 						net.push({x:player.x, y:player.y});
 					}
 					// Collect items inside net
+					var netItems = [];
 					for (var k = items.length-1; k >= 0; k--) {
 						if (insidePolygon(items[k].x, items[k].y, net)) {
+							items[k].lifeTime = undefined;
 							player.score++;
-							items.splice(k,k+1);
+							netItems.push(items[k]);
+							// items.splice(k,k+1);
 						}
 					}
 
-					player.nets.push(toCoordinates(net));
+					player.nets.push({items: netItems, points:toCoords(net)});
 					break;
 				}		
 			}
@@ -688,29 +692,43 @@ function runGame() {
 		var maxY = 0;
 		var avgX = 0;
 		var avgY = 0;
-		for (var j = 0; j < player.nets[i].length; j++) {
-			avgX += player.nets[i][j][0];
-			avgY += player.nets[i][j][1];
+		for (var j = 0; j < player.nets[i].points.length; j++) {
+			avgX += player.nets[i].points[j][0];
+			avgY += player.nets[i].points[j][1];
 		}
-		avgX /= player.nets[i].length;
-		avgY /= player.nets[i].length;
-		for (var j = 0; j < player.nets[i].length; j++) {
-			maxX = Math.max(maxX, Math.abs(avgX - player.nets[i][j][0]));
-			maxY = Math.max(maxY, Math.abs(avgY - player.nets[i][j][1]));
+		avgX /= player.nets[i].points.length;
+		avgY /= player.nets[i].points.length;
+		for (var j = 0; j < player.nets[i].points.length; j++) {
+			maxX = Math.max(maxX, Math.abs(avgX - player.nets[i].points[j][0]));
+			maxY = Math.max(maxY, Math.abs(avgY - player.nets[i].points[j][1]));
 		}
 		if (maxX < 1 && maxY < 1) {
+			for (var j in player.nets[i].items) {
+				var index = items.indexOf(player.nets[i].items[j]);
+				items.splice(index,index+1);
+			}
+			player.nets[i].items = [];
 			player.nets.splice(i, i+1);
 			i--;
 			break;
 		}
-		scaleFactor *= Math.min(pointDistance/pythag(maxX,maxY),16);
+		scaleFactor *= Math.min(pointDistance/pythag(maxX,maxY),16)/FPS;
 		// Translate, scale about new center, translate back
-		player.nets[i] = math.add(player.nets[i],
-			math.matrix().resize([player.nets[i].length],[-avgX, -avgY]).toArray());
-		player.nets[i] = math.multiply(player.nets[i],
-			[[1 - (scaleFactor)/FPS,0],[0,1 - (scaleFactor)/FPS]]);
-		player.nets[i] = math.add(player.nets[i],
-			math.matrix().resize([player.nets[i].length],[avgX, avgY]).toArray());
+		player.nets[i].points = scaleCoords(player.nets[i].points, scaleFactor, avgX, avgY);
+		var itemCoords = toCoords(player.nets[i].items);
+		for (var j = 0; j < itemCoords.length; j++) {
+			if (!insidePolygon(itemCoords[j][0], itemCoords[j][1], player.nets[i].points)){
+				var newCoords = scaleCoords([itemCoords[j]], scaleFactor, avgX, avgY);
+				player.nets[i].items[j].x = newCoords[0][0];
+				player.nets[i].items[j].y = newCoords[0][1];
+			}
+		}
+		// player.nets[i].points = math.add(player.nets[i].points,
+		// 	math.matrix().resize([player.nets[i].points.length],[-avgX, -avgY]).toArray());
+		// player.nets[i].points = math.multiply(player.nets[i].points,
+		// 	[[1 - (scaleFactor)/FPS,0],[0,1 - (scaleFactor)/FPS]]);
+		// player.nets[i].points = math.add(player.nets[i].points,
+		// 	math.matrix().resize([player.nets[i].points.length],[avgX, avgY]).toArray());
 	}
 
 	// Circle Rotation
