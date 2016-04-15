@@ -1,7 +1,7 @@
 var Key = {
   _pressed: {},
   secret: '',
-  qwerty: false,
+  layout: "p_dvorak",
 
   LEFT: 37,
   UP: 38,
@@ -106,7 +106,104 @@ function Entity(anims, x, y, width, height) {
 	this.canvas.height = this.width;
 	this.context = this.canvas.getContext('2d');
 	this.context.translate(this.width/2, this.height/2);
-	this.startTime = new Date().valueOf();
+	this.movePTP = function (start, end) {
+		var thisArrived = false;
+		var dx = end.x - this.x;
+		var dy = end.y - this.y;
+		if (Math.abs(dx) > 2 || Math.abs(dy) > 2) {
+			var distance = pythag(dx, dy);
+			var totalDx = end.x - start.x;
+			var totalDy = end.y - start.y;
+			var totalDistance = pythag(totalDx, totalDy);
+			// var vRatio = Math.min(1, distance/totalDistance + 0.4);
+			// vRatio = Math.sqrt(distance/totalDistance);
+			// // vRatio *= vRatio;
+			// vRatio -= 0.1;
+			// var thisAngle = Math.atan2(dy, dx);
+			// var speedMult = Math.max(2, vRatio*this.speed/FPS);
+			// this.x += speedMult * Math.cos(thisAngle);
+			// this.y += speedMult * Math.sin(thisAngle);
+			this.x = (totalDx !== 0)?(end.x - Math.max(0, dx/totalDx - 9/FPS)*totalDx):start.x;
+			this.y = (totalDy !== 0)?(end.y - Math.max(0, dy/totalDy - 9/FPS)*totalDy):start.y;
+		}
+		else {
+			// this.x = circle.subs.points[this.pointIndex].x;
+			// this.y = circle.subs.points[this.pointIndex].y;
+			this.x = end.x;
+			this.y = end.y;
+			thisArrived = true;
+			
+		}
+		return thisArrived;
+	}
+	this.startTime = frameCount;
+}
+function PointEntity(anims, x, y, width, height, startPoint, speed) {
+	Entity.call(this, anims, x, y, width, height);
+	this.pointIndex;
+	this.points = [];
+	this.pointsToGoTo = [];
+	this.netPoints = [];
+	this.nextPoint = function() {
+		if (this.pointsToGoTo.length <= 0) {
+			return;
+		}
+		this.points.push(this.pointIndex);
+		this.netPoints.push(circle.subs.points[this.pointIndex]);
+		// this.pointIndex = this.pointsToGoTo.shift();
+		var dest = this.pointsToGoTo.shift();
+		if (Number.isInteger(dest)) {
+			this.setPoint(dest);
+		}
+		else switch ('' + dest) {
+			case 'flip':
+				 this.setPoint(circle.getOpposingPoint(this.pointIndex));
+				 break;
+			case 'across':
+				 this.setPoint(this.pointIndex + circle.subs.points.length/2, circle.subs.points.length);
+				 this.netPoints = [];
+				 break;
+		}
+	}
+	this.getLatestPoint = function() {
+		return (this.points.length!==0)?this.points[this.points.length-1]:this.pointIndex;
+	}
+	this.getNewestPoint = function() {
+		return (this.pointsToGoTo.length!==0)?this.pointsToGoTo[this.pointsToGoTo.length-1]:this.pointIndex;
+	}
+	this.setPoint = function(index) {
+		this.pointIndex = modulo(index, circle.subs.points.length);
+	}
+	this.addPoint = function(index) {
+		this.pointsToGoTo.push(modulo(index, circle.subs.points.length));
+	}
+	this.incrementPoint = function(inc) {
+		this.addPoint(this.getNewestPoint() + inc);
+	}
+	this.jumpPoint = function() {
+		this.pointsToGoTo.push('flip');
+	}
+	this.jumpAcross = function() {
+		this.pointsToGoTo.push('across');
+	}
+	this.travel = function() {
+		var firstPoint = circle.subs.points[this.pointIndex];
+		if (!firstPoint) debugger;
+		var lastPoint = circle.subs.points[this.getLatestPoint()];
+		arrived = this.movePTP(lastPoint, firstPoint);
+		if (arrived && this.pointsToGoTo.length === 0) {
+			arrived = true;
+		}
+		else {
+			arrived = false;
+			this.nextPoint();
+		}
+		return arrived;
+	}
+	this.setPoint(nud(startPoint, 0));
+	this.x = nud(x, circle.subs.points[this.pointIndex].x)
+	this.y = nud(y, circle.subs.points[this.pointIndex].y)
+	this.speed = nud(speed, 4000);
 }
 function getAnimation(entity) {
 	return (entity.animations)?entity.animations[entity.currentAnimation]:null;
@@ -245,10 +342,12 @@ gameContext = gameCanvas[0].getContext('2d');
 gameContext.translate(gameWidth/2, gameHeight/2);
 window.addEventListener('keyup', function(event) { Key.onKeyup(event); }, false);
 window.addEventListener('keydown', function(event) { Key.onKeydown(event); }, false);
-if (Key.qwerty) {
-	Key.CLOCKWISE = 68;
-	Key.JUMP = 83;
-}
+$.get("js/layout.js", function() {
+	if (Key.layout === "qwerty") {
+		Key.CLOCKWISE = 68;
+		Key.JUMP = 83;
+	}
+});
 
 // Global variables
 var FPS = 30;
@@ -257,7 +356,7 @@ var scenes = {
 	game: {}
 }
 var game;
-var frameCount;
+var frameCount = 0;
 var cage;
 var player;
 var mark;
@@ -265,6 +364,17 @@ var circle;
 var items;
 var pointCount = 12;
 var pointDistance = 370;
+
+var basicItem = {
+	anims: [["res/item00.png"]],
+	val: 1,
+	type: 'basic'
+}
+var coolItem = {
+	anims: [["res/item2_00.png"]],
+	val: 5,
+	type: 'basic'
+}
 
 
 // Preload them resources
@@ -324,6 +434,8 @@ function startGame() {
 	}
 	items = [];
 	circle.subs.items = items;
+	edgemies = []; // Edge enemies
+	circle.subs.edgemies = edgemies;
 	circle.currentRotation = 0;
 	circle.rotationsToDo = [];
 	circle.getOpposingPoint = function(index) {
@@ -342,57 +454,13 @@ function startGame() {
 		}
 	}
 	var playerStartPoint = ~~(Math.random() * circle.subs.points.length);
-	player = new Entity([['res/player00.png']], circle.subs.points[playerStartPoint].x,
-		circle.subs.points[playerStartPoint].y);
+	player = new PointEntity([['res/player00.png']], null, null, null, null, playerStartPoint, 4000);
 	game.subs.circle.subs.player = player;
-	player.pointIndex = playerStartPoint;
-	player.points = [];
 	player.netPoints = [];
 	player.nets = [];
-	player.pointsToGoTo = [];
 	player.score = 0;
-	player.nextPoint = function() {
-		this.points.push(this.pointIndex);
-		this.netPoints.push(circle.subs.points[this.pointIndex]);
-		// this.pointIndex = this.pointsToGoTo.shift();
-		var dest = this.pointsToGoTo.shift();
-		if (Number.isInteger(dest)) {
-			this.pointIndex = dest;
-		}
-		else switch ('' + dest) {
-			case 'flip':
-				 this.setPoint(circle.getOpposingPoint(this.pointIndex));
-				 break;
-			case 'across':
-				 this.setPoint(this.pointIndex + circle.subs.points.length/2, circle.subs.points.length);
-				 this.netPoints = [];
-				 break;
-		}
-	}
-	player.getLatestPoint = function() {
-		return (player.points.length!==0)?player.points[player.points.length-1]:player.pointIndex;
-	}
-	player.getNewestPoint = function() {
-		return (player.pointsToGoTo.length!==0)?player.pointsToGoTo[player.pointsToGoTo.length-1]:player.pointIndex;
-	}
-	player.setPoint = function(index) {
-		this.pointIndex = modulo(index, circle.subs.points.length);
-	}
-	player.addPoint = function(index) {
-		this.pointsToGoTo.push(modulo(index, circle.subs.points.length));
-	}
-	player.incrementPoint = function(inc) {
-		var mostRecentPoint = this.pointsToGoTo[this.pointsToGoTo.length - 1];
-		if (mostRecentPoint === undefined) mostRecentPoint = this.pointIndex;
-		this.pointsToGoTo.push(modulo(mostRecentPoint + inc, circle.subs.points.length));
-	}
-	player.jumpPoint = function() {
-		this.pointsToGoTo.push('flip');
-	}
-	player.jumpAcross = function() {
-		this.pointsToGoTo.push('across');
-	}
-	player.speed = 4000;
+	player.highScore = 0;
+	
 	cage = new Entity([['res/cage00.jpg']], 0, 0/*, 80, 80*/);
 	cage.wraps = true;
 	// game.subs.cage = cage;
@@ -481,63 +549,73 @@ function runGame() {
 
 
 	// Player movement
-	// player.pointIndex = modulo(player.pointIndex, circle.subs.points.length);
-	var playerArrived = false;
-	var playerPoint = circle.subs.points[player.pointIndex];
-	if (!playerPoint) debugger;
-	var dx = playerPoint.x - player.x;
-	var dy = playerPoint.y - player.y;
-	if (Math.abs(dx) > 2 || Math.abs(dy) > 2) {
-		// Erase net if backtracking
+	var playerArrived = player.travel();
+	// Erase net if backtracking
+	if (!playerArrived) {
 		if (circle.subs.points[player.pointIndex] === player.netPoints[player.netPoints.length-2]) {
 			player.netPoints.pop();
 		}
-		var distance = pythag(dx, dy);
-		var lastPoint = circle.subs.points[player.getLatestPoint()];
-		var totalDx = playerPoint.x - lastPoint.x;
-		var totalDy = playerPoint.y - lastPoint.y;
-		var totalDistance = pythag(totalDx, totalDy);
-		// var vRatio = Math.min(1, distance/totalDistance + 0.4);
-		// vRatio = Math.sqrt(distance/totalDistance);
-		// // vRatio *= vRatio;
-		// vRatio -= 0.1;
-		// var playerAngle = Math.atan2(dy, dx);
-		// var speedMult = Math.max(2, vRatio*player.speed/FPS);
-		// player.x += speedMult * Math.cos(playerAngle);
-		// player.y += speedMult * Math.sin(playerAngle);
-		player.x = (totalDx !== 0)?(playerPoint.x - Math.max(0, dx/totalDx - 9/FPS)*totalDx):playerPoint.x;
-		player.y = (totalDy !== 0)?(playerPoint.y - Math.max(0, dy/totalDy - 9/FPS)*totalDy):playerPoint.y;
 	}
 	else {
-		// Erase net if backtracking
 		if (circle.subs.points[player.pointIndex] === player.netPoints[player.netPoints.length-1]) {
 			player.netPoints.pop();
-		}
-		player.x = circle.subs.points[player.pointIndex].x;
-		player.y = circle.subs.points[player.pointIndex].y;
-		if (player.pointsToGoTo.length !== 0) {
-			player.nextPoint();
-		}
-		else {
-			playerArrived = true;
 		}
 	}
 
 	// Spawn items
-	if (Math.random() < 0.25/FPS) {
+	if (Math.random() < 0.4/FPS) {
+		potentialItems = [basicItem];
+		if (Math.random() < 0.075) {
+			potentialItems.push(coolItem);
+		}
+		var chosenItem = choose(potentialItems);
 		var angle = Math.random()*2*Math.PI;
 		var dist = Math.random()*(pointDistance-10);
-		var newItem = new Entity([['res/item00.png']],
+		var newItem = new Entity(chosenItem.anims,
 			dist*Math.cos(angle), dist*Math.sin(angle));
-		newItem.type = 'basic';
-		newItem.lifeTime = 4000;
+		newItem.type = chosenItem.type;
+		newItem.lifeTime = 4*30;
+		newItem.val = chosenItem.val;
 		items.push(newItem);
+	}
+
+	// Spawn edgemies
+	if (Math.random() < 0.25/FPS) {
+		// Choose random spawn point index that isn't where the player is
+		var startPoint = ~~(Math.random()*(circle.subs.points.length-1))+player.pointIndex+1;
+		var newEdgemy = new PointEntity([['res/edgemy00.png']], null, null, null, null, startPoint);
+		newEdgemy.type = 'basic';
+		newEdgemy.lifeTime = 4*30;
+		newEdgemy.lastMove = newEdgemy.startTime;
+		newEdgemy.val = 1;
+		edgemies.push(newEdgemy);
 	}
 
 	// Update items
 	for (var i = items.length-1; i >= 0; i--) {
-		if (new Date().valueOf() - items[i].startTime > items[i].lifeTime) {
+		if (frameCount - items[i].startTime > items[i].lifeTime) {
 			items.splice(i,i+1);
+			continue;
+		}
+	}
+
+	// Update edgemies
+	for (var i = edgemies.length-1; i >= 0; i--) {
+		var age = frameCount - edgemies[i].startTime;
+		if (age > edgemies[i].lifeTime) {
+			edgemies.splice(i,i+1);
+			continue;
+		}
+		if (frameCount - edgemies[i].lastMove >= 30) {
+			var newPoint
+			edgemies[i].incrementPoint(~~(Math.random()*2)*2 - 1); // increment by 1 or -1
+			edgemies[i].lastMove = frameCount;
+		}
+		var arrived = edgemies[i].travel();
+		if (edgemies[i].pointIndex === player.pointIndex && playerArrived && arrived) {
+			edgemies.splice(i,i+1);
+			player.score -= 5;
+			continue;
 		}
 	}
 
@@ -672,7 +750,7 @@ function runGame() {
 					for (var k = items.length-1; k >= 0; k--) {
 						if (insidePolygon(items[k].x, items[k].y, net)) {
 							items[k].lifeTime = undefined;
-							player.score++;
+							// player.score++;
 							netItems.push(items[k]);
 							// items.splice(k,k+1);
 						}
@@ -704,6 +782,8 @@ function runGame() {
 		}
 		if (maxX < 1 && maxY < 1) {
 			for (var j in player.nets[i].items) {
+				player.score += player.nets[i].items[j].val;
+				player.highScore = Math.max(player.score, player.highScore);
 				var index = items.indexOf(player.nets[i].items[j]);
 				items.splice(index,index+1);
 			}
@@ -748,14 +828,19 @@ function runGame() {
 		var radRotation = (Math.PI/circle.subs.points.length)*rotation;
 		circle.rotation += radRotation;
 		player.rotation -= radRotation;
+		circle.currentRotation -= rotation;
+		cage.context.rotate(-rotation);
+	}
 		for (var it in circle.subs.items) {
 			var item = circle.subs.items[it];
 			item.rotation = -circle.rotation;
 			item.context.setRotation(item.rotation);
 		}
-		circle.currentRotation -= rotation;
-		cage.context.rotate(-rotation);
-	}
+		for (var it in circle.subs.edgemies) {
+			var edgemy = circle.subs.edgemies[it];
+			edgemy.rotation = -circle.rotation;
+			edgemy.context.setRotation(edgemy.rotation);
+		}
 	circle.context.setRotation(circle.rotation);
 	player.context.setRotation(player.rotation);
 
@@ -772,7 +857,8 @@ function runGame() {
 	draw(gameContext, game);
 	var fontSize = 50;
 	gameContext.font = fontSize + "px Georgia";
-	gameContext.fillText("Score: " + player.score, -gameWidth/2 + 20, -gameHeight/2 + fontSize + 10);
+	gameContext.fillText("High Score: " + player.highScore, -gameWidth/2 + 20, -gameHeight/2 + fontSize + 10);
+	gameContext.fillText("Score: " + player.score, -gameWidth/2 + 20, -gameHeight/2 + 2*fontSize + 20);
 
 	// draw(gameContext, new Entity([['res/joe_pass.jpg']], 44, 44));
 	// draw(gameContext, new Entity([['res/mystery_font.jpeg']], 0, 0), 0, 0, pw, 222);
@@ -780,13 +866,15 @@ function runGame() {
 
 	// Make key presses work
 	Key.updateStates();
-	frameCount++;
+
+	// console.log(frameCount);
 	// Set timer for next frame
 	var loopLengthMs = ~~(new Date()) - startMs;
 	if (loopLengthMs > 700/FPS) console.log('Loop duration: ' + loopLengthMs + 'ms');
 	var FPSMult = 0;
 	if (loopLengthMs > 900/FPS) FPS = 30;
 	if (loopLengthMs < 400/FPS) FPS = 60;
+	frameCount += 30/FPS;
 	// if (loopLengthMs > 900/FPS) FPSMult = 0.9;
 	// if (loopLengthMs < 600/FPS) FPSMult = 1.1;
 	// FPS *= FPSMult;

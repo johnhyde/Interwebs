@@ -37,7 +37,7 @@ CanvasRenderingContext2D.prototype.drawLine = function(x1, y1, x2, y2) {
 
 
 function nud(a,b) { //not undefined
-    return (a===undefined)?b:a;
+    return (a===undefined || a===null)?b:a;
 }
 function copyObject(obj) {
     return JSON.parse(JSON.stringify(obj));
@@ -55,6 +55,10 @@ function numToStringSpecLength(num, length) {
         }
         return str;
     }
+}
+
+function choose(array) {
+    return array[~~(Math.random()*array.length)];
 }
 
 function modulo(num1, num2) {

@@ -1,13 +1,13 @@
 TODO:
 - Animation support
-- Scaling of images
+!! Scaling of images
 - Actual artwork
 - Story / Context
 - Gameplay
 	- Collecting things
-		!! Move items nicely
+		- item effects
 	!! More items
-	- Enemies
-	- Point Effects
+	!! Enemies
+	!! Point Effects
 	? Varying # of points
 		- Fix crash

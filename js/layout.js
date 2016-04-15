@@ -1,0 +1,1 @@
+Key.layout = "p_dvorak";
