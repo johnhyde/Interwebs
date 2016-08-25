@@ -61,6 +61,37 @@ function choose(array) {
     return array[~~(Math.random()*array.length)];
 }
 
+function setCookie(cname, cvalue, exdays) {
+    var expires = '';
+    if (exdays !== undefined){
+        var d = new Date();
+        d.setTime(d.getTime() + (exdays*24*60*60*1000));
+        var expires = " expires="+d.toUTCString();
+    }
+    document.cookie = cname + "=" + cvalue + ";" + expires;
+}
+
+function getCookie(cname) {
+    var name = cname + "=";
+    var ca = document.cookie.split(';');
+    for(var i=0; i<ca.length; i++) {
+        var c = ca[i];
+        while (c.charAt(0)==' ') c = c.substring(1);
+        if (c.indexOf(name) == 0) return c.substring(name.length,c.length);
+    }
+    return "";
+}
+
+function eraseCookie(cname) {
+    setCookie(cname, '', -1);
+}
+
+function clearCookies() {
+    var cookies = document.cookie.split(";");
+    for (var i = 0; i < cookies.length; i++)
+      eraseCookie(cookies[i].split("=")[0]);
+}
+
 function modulo(num1, num2) {
     return ((num1 % num2)+num2)%num2;
 }
